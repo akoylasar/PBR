@@ -34,6 +34,12 @@ namespace
   constexpr float kFar = 1000.0f;
   const std::string kViewUniformName = "uView";
   const std::string kProjectionUniformName = "uProjection";
+  const std::string kAlbedoUniformName = "uAlbedo";
+  const std::string kMetallicUniformName = "uMetallic";
+  const std::string kRoughnessUniformName = "uRoughness";
+  const std::string kCameraPosUniformName = "uCameraPos";
+  const std::string kLightPositionsUniformName = "uLightPositions";
+  const std::string kLightColorsUniformName = "uLightColors";
 
   bool readToString(const std::filesystem::path& file, std::string& output)
   {
@@ -68,8 +74,17 @@ public:
     mProgram = std::make_unique<ShaderProgram>(vs, fs);
     const auto sphereMesh = Mesh::buildSphere(1.0, 32, 32);
     mGpuMesh = GpuMesh::createGpuMesh(*sphereMesh);
+    
     mViewUniformLoc = mProgram->getUniformLocation(kViewUniformName);
     mProjUniformLoc = mProgram->getUniformLocation(kProjectionUniformName);
+    
+    mAlbedoUniformLoc = mProgram->getUniformLocation(kAlbedoUniformName);
+    mMetallicUniformLoc = mProgram->getUniformLocation(kMetallicUniformName);
+    mRoughnessUniformLoc = mProgram->getUniformLocation(kRoughnessUniformName);
+    mCameraPosUniformLoc = mProgram->getUniformLocation(kCameraPosUniformName);
+    mLightPositionsUniformLoc = mProgram->getUniformLocation(kLightPositionsUniformName);
+    mLightColorsUniformLoc = mProgram->getUniformLocation(kLightColorsUniformName);
+    
     mInitialised = true;
   }
   
@@ -80,6 +95,12 @@ public:
       mProgram->use();
       mProgram->setMat4fUniform(mViewUniformLoc, camera.getView());
       mProgram->setMat4fUniform(mProjUniformLoc, camera.getProjection());
+      mProgram->setVec3fUniform(mAlbedoUniformLoc, mAlbedo);
+      mProgram->setFloatUniform(mMetallicUniformLoc, mMetallic);
+      mProgram->setFloatUniform(mRoughnessUniformLoc, mRoughness);
+      mProgram->setVec3fUniform(mCameraPosUniformLoc, camera.getOrigin());
+      mProgram->setVec3fArrayUniform<2>(mLightPositionsUniformLoc, mLightPositions);
+      mProgram->setVec3fArrayUniform<2>(mLightColorsUniformLoc, mLightColors);
       CHECK_GL_ERROR(glBindVertexArray(mGpuMesh.vao));
       CHECK_GL_ERROR(glDrawElements(mGpuMesh.drawMode,
                      								mGpuMesh.indexCount,
@@ -109,8 +130,22 @@ public:
 private:
   std::unique_ptr<ShaderProgram> mProgram;
   GpuMesh mGpuMesh;
+  
   GLint mViewUniformLoc;
   GLint mProjUniformLoc;
+ 	GLint mAlbedoUniformLoc;
+ 	GLint mMetallicUniformLoc;
+ 	GLint mRoughnessUniformLoc;
+ 	GLint mCameraPosUniformLoc;
+ 	GLint mLightPositionsUniformLoc;
+ 	GLint mLightColorsUniformLoc;
+  
+  Neon::Vec3f mAlbedo;
+  float mMetallic;
+  float mRoughness;
+  std::array<Neon::Vec3f, 2> mLightPositions;
+  std::array<Neon::Vec3f, 2> mLightColors;
+
   bool mInitialised = false;
 };
 
@@ -144,14 +179,25 @@ protected:
         
     mProfiler = std::make_unique<Profiler>();
     mUiTs = &mProfiler->createTimeStamp();
+    
+    CHECK_GL_ERROR(glEnable(GL_DEPTH_TEST));
+    CHECK_GL_ERROR(glEnable(GL_CULL_FACE));
+
     mMainScene->initialise();
   }
   
   void onFramebufferSize(int width, int height) override
   {
     CHECK_GL_ERROR(glViewport(0, 0, width, height));
+    const float aspect = (float)width / height;
+    mCamera->setProjection(kFovy, aspect, kNear, kFar);
   }
   
+  void onScroll(double xOffset, double yOffset) override
+  {
+    mCamera->rotate(0.1 * xOffset, 0.1 * yOffset);
+  }
+
   void draw(double deltaTime) override
   {
     CHECK_GL_ERROR(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
@@ -183,7 +229,23 @@ private:
     
     double uiMs = mUiTs->getElapsedTime() * fromNsToMs;
     mMainScene->drawUI(deltaTime);
-    ImGui::Text("UI rendering took %f(ms)", uiMs);
+    
+    ImVec2 windowPos, windowPosPivot;
+    ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPosPivot);
+    ImGui::SetNextWindowBgAlpha(0.35f);
+    bool open = true;
+    ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration |
+    															 ImGuiWindowFlags_AlwaysAutoResize |
+    															 ImGuiWindowFlags_NoSavedSettings |
+    															 ImGuiWindowFlags_NoFocusOnAppearing |
+    															 ImGuiWindowFlags_NoNav;
+    if (ImGui::Begin("Frame statistics", &open, windowFlags))
+    {
+      ImGui::Text("UI (GPU): %.2f(ms)", uiMs);
+      ImGui::Separator();
+      ImGui::Text("Frame time: %.2f(ms)", deltaTime * 1000.0);
+    }
+    ImGui::End();
 
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());

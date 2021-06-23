@@ -18,6 +18,7 @@ namespace Akoylasar
     void requestRedraw();
     void run();
     void maximize();
+    double getTimeMs();
 
     static void glfwErrorCallback(int error, const char* description);
 

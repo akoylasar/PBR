@@ -6,6 +6,11 @@
 #include <iostream>
 #include <exception>
 
+namespace
+{
+  constexpr double kToMs = 1000.0;
+}
+
 namespace Akoylasar
 {
   GlfwApp::GlfwApp(const std::string& title, int width, int height, int major, int minor)
@@ -104,6 +109,11 @@ namespace Akoylasar
   void GlfwApp::maximize()
   {
     glfwMaximizeWindow(mWindow);
+  }
+  
+  double getTimeMs()
+  {
+    return glfwGetTime() * kToMs;
   }
 
   void GlfwApp::setupCallbacks()

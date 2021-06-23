@@ -10,7 +10,7 @@ uniform mat4 uView;
 
 void main()
 {
-    vPos = aPos.xyz;
-    vNormal = aNormal;
-    gl_Position =  uProjection * uView * vec4(aPos, 1.0f);
+  vPos = aPos.xyz;
+  vNormal = aNormal;
+  gl_Position =  uProjection * uView * vec4(aPos, 1.0f);
 }

@@ -1,7 +1,5 @@
 #include "ShaderProgram.hpp"
 
-#include "Debug.hpp"
-
 namespace Akoylasar
 {
   ShaderProgram::ShaderProgram(const std::string& vsSource, const std::string& fsSource)
@@ -12,7 +10,7 @@ namespace Akoylasar
     
     std::string fsError; GLuint fs;
     if (!createShader(fs, fsSource, GL_FRAGMENT_SHADER, fsError))
-      DEBUG_ASSERT_MSG(false, vsError);
+      DEBUG_ASSERT_MSG(false, fsError);
 
     mProgramHandle = CHECK_GL_ERROR(glCreateProgram());
     
@@ -48,17 +46,17 @@ namespace Akoylasar
     CHECK_GL_ERROR(glUniform1f(location, value));
   }
 
-  void ShaderProgram::setVec2fUniform(const GLuint location, Neon::Vec2<float>& vec) const
+  void ShaderProgram::setVec2fUniform(const GLuint location, const Neon::Vec2f& vec) const
   {
     CHECK_GL_ERROR(glUniform2f(location, vec.x, vec.y));
   }
 
-  void ShaderProgram::setVec3fUniform(const GLuint location, Neon::Vec3<float>& vec) const
+  void ShaderProgram::setVec3fUniform(const GLuint location, const Neon::Vec3f& vec) const
   {
     CHECK_GL_ERROR(glUniform3f(location, vec.x, vec.y, vec.z));
   }
 
-  void ShaderProgram::setMat4fUniform(const GLuint location, const Neon::Mat4<float>& mat) const
+  void ShaderProgram::setMat4fUniform(const GLuint location, const Neon::Mat4f& mat) const
   {
     CHECK_GL_ERROR(glUniformMatrix4fv(location, 1, GL_FALSE, mat.data()));
   }
