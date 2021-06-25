@@ -10,6 +10,7 @@ out vec4 FragColor;
 uniform vec3 uAlbedo;
 uniform float uMetallic;
 uniform float uRoughness;
+uniform float uAo;
 
 uniform vec3 uCameraPos;
 
@@ -65,7 +66,7 @@ void main()
   F0 = mix(F0, uAlbedo, uMetallic);
   vec3 N = vNormal;
 
-  vec3 Lo = vec3(1.0);
+  vec3 Lo = vec3(0.0);
   for (int i = 0; i < NUM_LIGHTS; i++)
   {
     vec3 lightPos = uLightPositions[i];
@@ -91,9 +92,18 @@ void main()
     float NdotV = max(dot(N, V), 0.0);             
 
     vec3 specular = (NDF * G * F) / max(4.0 * NdotV * NdotL, 0.001); 
-
+    // Lo = radiance;
     Lo += (kD * (uAlbedo / PI) + specular) * radiance * NdotL;
   }
 
-  FragColor = vec4(Lo, 1.0);
+  // Some fake ambient light.
+  vec3 ambient = uAlbedo * uAo;
+  vec3 color = ambient + Lo;
+
+  // Tone-mapping
+  color = color / (vec3(1.0) + color);
+  // Gamma correction
+  color = pow(color, vec3(1.0 / 2.2));
+
+  FragColor = vec4(color, 1.0);
 }

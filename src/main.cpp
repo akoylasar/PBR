@@ -37,9 +37,15 @@ namespace
   const std::string kAlbedoUniformName = "uAlbedo";
   const std::string kMetallicUniformName = "uMetallic";
   const std::string kRoughnessUniformName = "uRoughness";
+  const std::string kAoUniformName = "uAo";
   const std::string kCameraPosUniformName = "uCameraPos";
   const std::string kLightPositionsUniformName = "uLightPositions";
   const std::string kLightColorsUniformName = "uLightColors";
+  
+  const std::array<Neon::Vec3f, 2> kLightPositions{Neon::Vec3f{0.0f, 0.0f, 5.0f},
+    																							 Neon::Vec3f{0.0f, 10.0f, 0.0f}};
+  const std::array<Neon::Vec3f, 2> kLightColors{Neon::Vec3f{5, 5, 5},
+                                                Neon::Vec3f{5, 5, 5}};
 
   bool readToString(const std::filesystem::path& file, std::string& output)
   {
@@ -72,7 +78,7 @@ public:
       return;
     }
     mProgram = std::make_unique<ShaderProgram>(vs, fs);
-    const auto sphereMesh = Mesh::buildSphere(1.0, 32, 32);
+    const auto sphereMesh = Mesh::buildSphere(3.0, 256, 256);
     mGpuMesh = GpuMesh::createGpuMesh(*sphereMesh);
     
     mViewUniformLoc = mProgram->getUniformLocation(kViewUniformName);
@@ -81,6 +87,7 @@ public:
     mAlbedoUniformLoc = mProgram->getUniformLocation(kAlbedoUniformName);
     mMetallicUniformLoc = mProgram->getUniformLocation(kMetallicUniformName);
     mRoughnessUniformLoc = mProgram->getUniformLocation(kRoughnessUniformName);
+    mAoUniformLoc = mProgram->getUniformLocation(kAoUniformName);
     mCameraPosUniformLoc = mProgram->getUniformLocation(kCameraPosUniformName);
     mLightPositionsUniformLoc = mProgram->getUniformLocation(kLightPositionsUniformName);
     mLightColorsUniformLoc = mProgram->getUniformLocation(kLightColorsUniformName);
@@ -98,10 +105,15 @@ public:
       mProgram->setVec3fUniform(mAlbedoUniformLoc, mAlbedo);
       mProgram->setFloatUniform(mMetallicUniformLoc, mMetallic);
       mProgram->setFloatUniform(mRoughnessUniformLoc, mRoughness);
+      mProgram->setFloatUniform(mAoUniformLoc, mAo);
       mProgram->setVec3fUniform(mCameraPosUniformLoc, camera.getOrigin());
-      mProgram->setVec3fArrayUniform<2>(mLightPositionsUniformLoc, mLightPositions);
-      mProgram->setVec3fArrayUniform<2>(mLightColorsUniformLoc, mLightColors);
+      mProgram->setVec3fArrayUniform<2>(mLightPositionsUniformLoc, kLightPositions);
+      mProgram->setVec3fArrayUniform<2>(mLightColorsUniformLoc, kLightColors);
       CHECK_GL_ERROR(glBindVertexArray(mGpuMesh.vao));
+      
+      if (mShowWireframe)  CHECK_GL_ERROR(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
+			else CHECK_GL_ERROR(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+      
       CHECK_GL_ERROR(glDrawElements(mGpuMesh.drawMode,
                      								mGpuMesh.indexCount,
                      								GL_UNSIGNED_INT,
@@ -113,6 +125,20 @@ public:
   {
     if (mInitialised)
     {
+      bool open = true;
+      ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration |
+                                     ImGuiWindowFlags_AlwaysAutoResize |
+                                     ImGuiWindowFlags_NoFocusOnAppearing |
+                                     ImGuiWindowFlags_NoNav;
+      if (ImGui::Begin("Controls", &open, windowFlags))
+      {
+        ImGui::SliderFloat("Metallic", &mMetallic, 0, 1);
+        ImGui::SliderFloat("Roughness", &mRoughness, 0, 1);
+        ImGui::Separator();
+        ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&mAlbedo));
+        ImGui::SliderFloat("AO", &mAo, 0, 0.1);
+      }
+      ImGui::End();
     }
   }
   
@@ -136,16 +162,17 @@ private:
  	GLint mAlbedoUniformLoc;
  	GLint mMetallicUniformLoc;
  	GLint mRoughnessUniformLoc;
+  GLint mAoUniformLoc;
  	GLint mCameraPosUniformLoc;
  	GLint mLightPositionsUniformLoc;
  	GLint mLightColorsUniformLoc;
   
-  Neon::Vec3f mAlbedo;
-  float mMetallic;
-  float mRoughness;
-  std::array<Neon::Vec3f, 2> mLightPositions;
-  std::array<Neon::Vec3f, 2> mLightColors;
+  Neon::Vec3f mAlbedo = Neon::Vec3f(0.0, 0.15, 0.9);
+  float mMetallic = 0.1f;
+  float mRoughness = 0.8f;
+  float mAo = 0.005;
 
+  bool mShowWireframe = false;
   bool mInitialised = false;
 };
 
@@ -203,6 +230,7 @@ protected:
     CHECK_GL_ERROR(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
 
     mMainScene->render(deltaTime, *mCamera);
+    
     drawUI(deltaTime);
 
     mProfiler->swapBuffers();

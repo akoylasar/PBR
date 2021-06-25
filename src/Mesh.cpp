@@ -18,13 +18,13 @@ namespace Akoylasar
     {
       const double phi = static_cast<double>(h) / hSegments;
       const double y = radius * std::cos(phi * Neon::kPi);
-      const double scale = radius * std::sin(phi * Neon::kPi);
+      const double r = radius * std::sin(phi * Neon::kPi);
       for (int v = 0; v <= vSegments; ++v)
       {
         Vertex vert;
         const double theta = static_cast<double>(v) / vSegments;
-        const double x = std::cos(theta * kTwoPi) * scale;
-        const double z = std::sin(theta * kTwoPi) * scale;
+        const double x = -std::cos(theta * kTwoPi) * r;
+        const double z = std::sin(theta * kTwoPi) * r;
         vert.position.x = x;
         vert.position.y = y;
         vert.position.z = z;
@@ -35,14 +35,18 @@ namespace Akoylasar
       }
     }
     // Generate indices. TRIANGLE topology.
+    unsigned int indexCount = 6 * vSegments * (hSegments - 1);
+    mesh->indices.reserve(indexCount);
     for (int h = 0; h < hSegments; ++h)
     {
       for (int v = 0; v < vSegments; ++v)
       {
-        const unsigned int a = h * vSegments + (v + 1);
-        const unsigned int b = h * vSegments + v;
-        const unsigned int c = (h + 1) * vSegments + v;
-        const unsigned int d = (h + 1) * vSegments + (v + 1);
+        const unsigned int s = vSegments + 1;
+        const unsigned int a = h * s + (v + 1);
+        const unsigned int b = h * s + v;
+        const unsigned int c = (h + 1) * s + v;
+        const unsigned int d = (h + 1) * s + (v + 1);
+        
         // Avoid degenerate triangles in the caps.
         if (h != 0)
         {
@@ -58,6 +62,41 @@ namespace Akoylasar
         }
       }
     }
+    return mesh;
+  }
+  
+  std::unique_ptr<Mesh> Mesh::buildQuad()
+  {
+    std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>();
+    
+    Vertex vert;
+    mesh->vertices.reserve(4);
+    mesh->indices.reserve(6);
+    
+    vert.position = Neon::Vec3f{-1, 1, 0.0};
+    vert.uv = Neon::Vec2f{0, 0};
+    mesh->vertices.push_back(vert);
+    
+    vert.position = Neon::Vec3f{1, 1, 0.0};
+    vert.uv = Neon::Vec2f{1, 0};
+    mesh->vertices.push_back(vert);
+    
+    vert.position = Neon::Vec3f{1, -1, 0.0};
+    vert.uv = Neon::Vec2f{1, 1};
+    mesh->vertices.push_back(vert);
+    
+    vert.position = Neon::Vec3f{-1, -1, 0.0};
+    vert.uv = Neon::Vec2f{0, 1};
+    mesh->vertices.push_back(vert);
+    
+    mesh->indices.push_back(3);
+    mesh->indices.push_back(1);
+    mesh->indices.push_back(0);
+    
+    mesh->indices.push_back(3);
+    mesh->indices.push_back(2);
+    mesh->indices.push_back(1);
+
     return mesh;
   }
 

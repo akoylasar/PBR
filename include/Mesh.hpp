@@ -21,6 +21,7 @@ namespace Akoylasar
     static std::unique_ptr<Mesh> buildSphere(double radius = 1.0,
                                              unsigned int hSegments = 32,
                                              unsigned int vSegments = 32);
+    static std::unique_ptr<Mesh> buildQuad();
   };
 
   struct GpuMesh
