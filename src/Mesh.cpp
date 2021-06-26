@@ -69,34 +69,87 @@ namespace Akoylasar
   {
     std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>();
     
-    Vertex vert;
-    mesh->vertices.reserve(4);
-    mesh->indices.reserve(6);
+    std::vector<Vertex> vertices = {
+      {Neon::Vec3f{-1, 1, 0.0},  Neon::Vec3f{0, 0, 1.0}, Neon::Vec2f{0, 0}}, // top left
+      {Neon::Vec3f{1, 1, 0.0},   Neon::Vec3f{0, 0, 1.0}, Neon::Vec2f{1, 0}}, // top right
+      {Neon::Vec3f{1, -1, 0.0},  Neon::Vec3f{0, 0, 1.0}, Neon::Vec2f{1, 1}}, // bottom right
+      {Neon::Vec3f{-1, -1, 0.0}, Neon::Vec3f{0, 0, 1.0}, Neon::Vec2f{0, 1}} // bottom left
+    };
+    std::vector<unsigned int> indices {
+      3, 1, 0,
+      3, 2, 1
+    };
     
-    vert.position = Neon::Vec3f{-1, 1, 0.0};
-    vert.uv = Neon::Vec2f{0, 0};
-    mesh->vertices.push_back(vert);
-    
-    vert.position = Neon::Vec3f{1, 1, 0.0};
-    vert.uv = Neon::Vec2f{1, 0};
-    mesh->vertices.push_back(vert);
-    
-    vert.position = Neon::Vec3f{1, -1, 0.0};
-    vert.uv = Neon::Vec2f{1, 1};
-    mesh->vertices.push_back(vert);
-    
-    vert.position = Neon::Vec3f{-1, -1, 0.0};
-    vert.uv = Neon::Vec2f{0, 1};
-    mesh->vertices.push_back(vert);
-    
-    mesh->indices.push_back(3);
-    mesh->indices.push_back(1);
-    mesh->indices.push_back(0);
-    
-    mesh->indices.push_back(3);
-    mesh->indices.push_back(2);
-    mesh->indices.push_back(1);
+    mesh->vertices.assign(vertices.begin(), vertices.end());
+    mesh->indices.assign(indices.begin(), indices.end());
 
+    return mesh;
+  }
+  
+  std::unique_ptr<Mesh> Mesh::buildCube()
+  {
+    std::unique_ptr<Mesh> mesh = std::make_unique<Mesh>();
+    
+    std::vector<Vertex> vertices = {
+      // Front face
+      {Neon::Vec3f{-1, 1, 1.0},  Neon::Vec3f{0, 0, 1.0}, Neon::Vec2f{0, 0}},
+      {Neon::Vec3f{1, 1, 1.0},   Neon::Vec3f{0, 0, 1.0}, Neon::Vec2f{1, 0}},
+      {Neon::Vec3f{1, -1, 1.0},  Neon::Vec3f{0, 0, 1.0}, Neon::Vec2f{1, 1}},
+      {Neon::Vec3f{-1, -1, 1.0}, Neon::Vec3f{0, 0, 1.0}, Neon::Vec2f{0, 1}},
+      
+      // Back face
+      {Neon::Vec3f{-1, 1, -1.0},  Neon::Vec3f{0, 0, -1.0}, Neon::Vec2f{1, 0}},
+      {Neon::Vec3f{1, 1, -1.0},   Neon::Vec3f{0, 0, -1.0}, Neon::Vec2f{0, 0}},
+      {Neon::Vec3f{1, -1, -1.0},  Neon::Vec3f{0, 0, -1.0}, Neon::Vec2f{0, 1}},
+      {Neon::Vec3f{-1, -1, -1.0}, Neon::Vec3f{0, 0, -1.0}, Neon::Vec2f{1, 1}},
+      
+      // Left face
+      {Neon::Vec3f{-1, 1, -1.0},  Neon::Vec3f{-1, 0, 0}, Neon::Vec2f{0, 0}},
+      {Neon::Vec3f{-1, 1, 1.0},   Neon::Vec3f{-1, 0, 0}, Neon::Vec2f{1, 0}},
+      {Neon::Vec3f{-1, -1, 1.0},  Neon::Vec3f{-1, 0, 0}, Neon::Vec2f{1, 1}},
+      {Neon::Vec3f{-1, -1, -1.0}, Neon::Vec3f{-1, 0, 0}, Neon::Vec2f{0, 1}},
+      
+      // Right face
+      {Neon::Vec3f{1, 1, -1.0},  Neon::Vec3f{1, 0, 0}, Neon::Vec2f{1, 0}},
+      {Neon::Vec3f{1, 1, 1.0},   Neon::Vec3f{1, 0, 0}, Neon::Vec2f{0, 0}},
+      {Neon::Vec3f{1, -1, 1.0},  Neon::Vec3f{1, 0, 0}, Neon::Vec2f{0, 1}},
+      {Neon::Vec3f{1, -1, -1.0}, Neon::Vec3f{1, 0, 0}, Neon::Vec2f{1, 1}},
+      
+      // Top face
+      {Neon::Vec3f{-1, 1, -1.0},  Neon::Vec3f{0, 1, 0}, Neon::Vec2f{0, 0}},
+      {Neon::Vec3f{1, 1, -1.0},   Neon::Vec3f{0, 1, 0}, Neon::Vec2f{1, 0}},
+      {Neon::Vec3f{1, 1, 1.0},   Neon::Vec3f{0, 1, 0}, Neon::Vec2f{1, 1}},
+      {Neon::Vec3f{-1, 1, 1.0}, 	Neon::Vec3f{0, 1, 0}, Neon::Vec2f{0, 1}},
+      
+      // Bottom face
+      {Neon::Vec3f{-1, -1, -1.0},  Neon::Vec3f{0, -1, 0}, Neon::Vec2f{1, 0}},
+      {Neon::Vec3f{1, -1, -1.0},   Neon::Vec3f{0, -1, 0}, Neon::Vec2f{0, 0}},
+      {Neon::Vec3f{1, -1, 1.0},   Neon::Vec3f{0, -1, 0}, Neon::Vec2f{0, 1}},
+      {Neon::Vec3f{-1, -1, 1.0},   Neon::Vec3f{0, -1, 0}, Neon::Vec2f{1, 1}},
+    };
+    std::vector<unsigned int> indices {
+      3, 1, 0,
+      3, 2, 1,
+      
+      4, 5, 7,
+      5, 6, 7,
+      
+      11, 9, 8,
+      11, 10, 9,
+      
+      12, 13, 15,
+      13, 14, 15,
+      
+      19, 17, 16,
+      19, 18, 17,
+      
+      20, 21, 23,
+      21, 22, 23
+    };
+    
+    mesh->vertices.assign(vertices.begin(), vertices.end());
+    mesh->indices.assign(indices.begin(), indices.end());
+    
     return mesh;
   }
 

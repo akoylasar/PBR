@@ -22,6 +22,7 @@ namespace Akoylasar
                                              unsigned int hSegments = 32,
                                              unsigned int vSegments = 32);
     static std::unique_ptr<Mesh> buildQuad();
+    static std::unique_ptr<Mesh> buildCube();
   };
 
   struct GpuMesh
