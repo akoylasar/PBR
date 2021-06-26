@@ -14,9 +14,9 @@ uniform float uAo;
 
 uniform vec3 uCameraPos;
 
-#define NUM_LIGHTS 2
+#define NUM_LIGHTS 4
 uniform vec3 uLightPositions[NUM_LIGHTS];
-uniform vec3 uLightColors[NUM_LIGHTS];
+uniform vec3 uLightColor;
 
 // The next four functions are described in great details at:
 // https://learnopengl.com/PBR/Lighting
@@ -70,14 +70,13 @@ void main()
   for (int i = 0; i < NUM_LIGHTS; i++)
   {
     vec3 lightPos = uLightPositions[i];
-    vec3 lightCol = uLightColors[i];
 
     vec3 L = normalize(lightPos - vPos);
     vec3 V = normalize(uCameraPos - vPos);
     vec3 H = normalize(L + V);
 
     float d = length(lightPos - vPos);
-    vec3 radiance = lightCol / (d * d);
+    vec3 radiance = uLightColor / (d * d);
 
     // Cook-Torrance BRDF
     float NDF = DistributionGGX(vNormal, H, uRoughness);        

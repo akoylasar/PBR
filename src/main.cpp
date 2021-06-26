@@ -40,12 +40,13 @@ namespace
   const std::string kAoUniformName = "uAo";
   const std::string kCameraPosUniformName = "uCameraPos";
   const std::string kLightPositionsUniformName = "uLightPositions";
-  const std::string kLightColorsUniformName = "uLightColors";
+  const std::string kLightColorUniformName = "uLightColor";
   
-  const std::array<Neon::Vec3f, 2> kLightPositions{Neon::Vec3f{0.0f, 0.0f, 5.0f},
-    																							 Neon::Vec3f{0.0f, 10.0f, 0.0f}};
-  const std::array<Neon::Vec3f, 2> kLightColors{Neon::Vec3f{5, 5, 5},
-                                                Neon::Vec3f{5, 5, 5}};
+  const std::array<Neon::Vec3f, 4> kLightPositions{Neon::Vec3f{2.0f, 2.0f, 5.0f},
+    																							 Neon::Vec3f{2.0f, -2.0f, 5.0f},
+                                                   Neon::Vec3f{-2.0f, -2.0f, 5.0f},
+                                                   Neon::Vec3f{-2.0f, 2.0f, 5.0f}
+  };
 
   bool readToString(const std::filesystem::path& file, std::string& output)
   {
@@ -90,7 +91,7 @@ public:
     mAoUniformLoc = mProgram->getUniformLocation(kAoUniformName);
     mCameraPosUniformLoc = mProgram->getUniformLocation(kCameraPosUniformName);
     mLightPositionsUniformLoc = mProgram->getUniformLocation(kLightPositionsUniformName);
-    mLightColorsUniformLoc = mProgram->getUniformLocation(kLightColorsUniformName);
+    mLightColorUniformLoc = mProgram->getUniformLocation(kLightColorUniformName);
     
     mInitialised = true;
   }
@@ -107,8 +108,8 @@ public:
       mProgram->setFloatUniform(mRoughnessUniformLoc, mRoughness);
       mProgram->setFloatUniform(mAoUniformLoc, mAo);
       mProgram->setVec3fUniform(mCameraPosUniformLoc, camera.getOrigin());
-      mProgram->setVec3fArrayUniform<2>(mLightPositionsUniformLoc, kLightPositions);
-      mProgram->setVec3fArrayUniform<2>(mLightColorsUniformLoc, kLightColors);
+      mProgram->setVec3fArrayUniform<4>(mLightPositionsUniformLoc, kLightPositions);
+      mProgram->setVec3fUniform(mLightColorUniformLoc, mLightColor);
       CHECK_GL_ERROR(glBindVertexArray(mGpuMesh.vao));
       
       if (mShowWireframe)  CHECK_GL_ERROR(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
@@ -132,11 +133,12 @@ public:
                                      ImGuiWindowFlags_NoNav;
       if (ImGui::Begin("Controls", &open, windowFlags))
       {
+        ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&mAlbedo));
         ImGui::SliderFloat("Metallic", &mMetallic, 0, 1);
         ImGui::SliderFloat("Roughness", &mRoughness, 0, 1);
         ImGui::Separator();
-        ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&mAlbedo));
         ImGui::SliderFloat("AO", &mAo, 0, 0.1);
+        ImGui::ColorEdit3("Light Color", reinterpret_cast<float*>(&mLightColor));
       }
       ImGui::End();
     }
@@ -165,12 +167,13 @@ private:
   GLint mAoUniformLoc;
  	GLint mCameraPosUniformLoc;
  	GLint mLightPositionsUniformLoc;
- 	GLint mLightColorsUniformLoc;
+ 	GLint mLightColorUniformLoc;
   
   Neon::Vec3f mAlbedo = Neon::Vec3f(0.0, 0.15, 0.9);
   float mMetallic = 0.1f;
   float mRoughness = 0.8f;
   float mAo = 0.005;
+  Neon::Vec3f mLightColor = Neon::Vec3f(1.0f);
 
   bool mShowWireframe = false;
   bool mInitialised = false;
