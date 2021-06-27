@@ -17,14 +17,15 @@ target_sources(${PROJECT_NAME} PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/Debug.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/GlfwApp.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/Profiler.hpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/include/Geometry.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/Mesh.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/ShaderProgram.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/Camera.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/Ubo.hpp
 
   ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/GlfwApp.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/Debug.cpp
-  ${CMAKE_CURRENT_SOURCE_DIR}/src/Geometry.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/Mesh.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ShaderProgram.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/Camera.cpp
 )

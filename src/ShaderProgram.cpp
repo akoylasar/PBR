@@ -40,6 +40,14 @@ namespace Akoylasar
   {
     return CHECK_GL_ERROR(glGetUniformLocation(mProgramHandle, uniformName.c_str()));
   }
+  
+  // @todo:
+  // In OpenGL 4.2 and onward we could use this
+  // layout(std140, binding = 0) uniform Block { ... };
+  GLuint ShaderProgram::getUniformBlockIndex(const std::string& uniformBlockName) const
+  {
+    return CHECK_GL_ERROR(glGetUniformBlockIndex(mProgramHandle, uniformBlockName.c_str()));
+  }
 
   void ShaderProgram::setFloatUniform(const GLuint location, float value) const
   {
@@ -59,6 +67,11 @@ namespace Akoylasar
   void ShaderProgram::setMat4fUniform(const GLuint location, const Neon::Mat4f& mat) const
   {
     CHECK_GL_ERROR(glUniformMatrix4fv(location, 1, GL_FALSE, mat.data()));
+  }
+  
+  void ShaderProgram::setIntUniform(const GLuint location, int value)
+  {
+    CHECK_GL_ERROR(glUniform1i(location, value));
   }
   
   void ShaderProgram::use() const
@@ -86,5 +99,10 @@ namespace Akoylasar
       return false;
     }
     return true;
+  }
+  
+  void ShaderProgram::setUniformBlockBinding(GLuint uniformBlockIndex, GLuint uniformBlockBinding)
+  {
+    CHECK_GL_ERROR(glUniformBlockBinding(mProgramHandle, uniformBlockIndex, uniformBlockBinding));
   }
 }

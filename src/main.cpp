@@ -2,6 +2,7 @@
 #include <memory>
 #include <fstream>
 #include <sstream>
+#include <utility>
 
 #include <GL/gl3w.h>
 #include <GLFW/glfw3.h>
@@ -16,6 +17,7 @@
 #include "ShaderProgram.hpp"
 #include "Mesh.hpp"
 #include "Camera.hpp"
+#include "Ubo.hpp"
 
 using namespace Akoylasar;
 
@@ -32,8 +34,10 @@ namespace
   constexpr float kAspect = (float)kWindowWidth / kWindowHeight;
   constexpr float kNear = 0.3f;
   constexpr float kFar = 1000.0f;
-  const std::string kViewUniformName = "uView";
-  const std::string kProjectionUniformName = "uProjection";
+  
+  const GLuint kMatricesUniformBlockBinding = 0;
+  const std::string kMatricesUbName = "ubMatrices";
+
   const std::string kAlbedoUniformName = "uAlbedo";
   const std::string kMetallicUniformName = "uMetallic";
   const std::string kRoughnessUniformName = "uRoughness";
@@ -41,6 +45,9 @@ namespace
   const std::string kCameraPosUniformName = "uCameraPos";
   const std::string kLightPositionsUniformName = "uLightPositions";
   const std::string kLightColorUniformName = "uLightColor";
+  
+  const std::string kDebugModeUniformName = "uMode";
+  const char* kDebugModes[] = {"Position", "Normal", "Uvs"};
   
   const std::array<Neon::Vec3f, 4> kLightPositions{Neon::Vec3f{2.0f, 2.0f, 5.0f},
     																							 Neon::Vec3f{2.0f, -2.0f, 5.0f},
@@ -65,25 +72,40 @@ class MainScene
 public:
   void initialise()
   {
-    const std::filesystem::path vsPath {"basicPbr.vs"};
-    const std::filesystem::path fsPath {"basicPbr.fs"};
-    std::string vs, fs;
-    if (readToString(vsPath, vs))
+    using ShaderInfo = std::pair<std::filesystem::path, std::string>;
+    using ProgramInfo = std::array<ShaderInfo, 2>;
+    ProgramInfo pbrProgramInfo {std::make_pair("basicPbr.vs", ""), std::make_pair("basicPbr.fs", "")};
+    ProgramInfo debugProgramInfo {std::make_pair("debug.vs", ""), std::make_pair("debug.fs", "")};
+    
+    std::array<ProgramInfo*, 2> programInfos {&pbrProgramInfo, &debugProgramInfo};
+    for (auto programInfo : programInfos)
     {
-      std::cerr << "Failed to load vertex shader" << std::endl;
-      return;
+      for (auto& pair : *programInfo)
+      {
+        auto& path = pair.first;
+        auto& str = pair.second;
+        if (readToString(path, str))
+        {
+          std::cerr << "Failed to load shader" << std::endl;
+          return;
+        }
+      }
     }
-    if (readToString(fsPath, fs))
-    {
-      std::cerr << "Failed to load fragment shader" << std::endl;
-      return;
-    }
-    mProgram = std::make_unique<ShaderProgram>(vs, fs);
+		
+    const auto matricesBlockSize = 2 * sizeof(Neon::Mat4f);
+    mMatricesUbo = Ubo::createUbo(matricesBlockSize, kMatricesUniformBlockBinding);
+    GLuint matricesBlockIndex;
+
+    mProgram = std::make_unique<ShaderProgram>(pbrProgramInfo.at(0).second, pbrProgramInfo.at(1).second);
+    matricesBlockIndex = mProgram->getUniformBlockIndex(kMatricesUbName);
+    mProgram->setUniformBlockBinding(matricesBlockIndex, kMatricesUniformBlockBinding);
+    
+    mDebugProgram = std::make_unique<ShaderProgram>(debugProgramInfo.at(0).second, debugProgramInfo.at(1).second);
+    matricesBlockIndex = mDebugProgram->getUniformBlockIndex(kMatricesUbName);
+    mDebugProgram->setUniformBlockBinding(matricesBlockIndex, kMatricesUniformBlockBinding);
+    
     const auto sphereMesh = Mesh::buildSphere(3.0, 256, 256);
     mGpuMesh = GpuMesh::createGpuMesh(*sphereMesh);
-    
-    mViewUniformLoc = mProgram->getUniformLocation(kViewUniformName);
-    mProjUniformLoc = mProgram->getUniformLocation(kProjectionUniformName);
     
     mAlbedoUniformLoc = mProgram->getUniformLocation(kAlbedoUniformName);
     mMetallicUniformLoc = mProgram->getUniformLocation(kMetallicUniformName);
@@ -93,6 +115,8 @@ public:
     mLightPositionsUniformLoc = mProgram->getUniformLocation(kLightPositionsUniformName);
     mLightColorUniformLoc = mProgram->getUniformLocation(kLightColorUniformName);
     
+    mDebugModeUniformLoc = mDebugProgram->getUniformLocation(kDebugModeUniformName);
+ 
     mInitialised = true;
   }
   
@@ -100,25 +124,37 @@ public:
   {
     if (mInitialised)
     {
-      mProgram->use();
-      mProgram->setMat4fUniform(mViewUniformLoc, camera.getView());
-      mProgram->setMat4fUniform(mProjUniformLoc, camera.getProjection());
-      mProgram->setVec3fUniform(mAlbedoUniformLoc, mAlbedo);
-      mProgram->setFloatUniform(mMetallicUniformLoc, mMetallic);
-      mProgram->setFloatUniform(mRoughnessUniformLoc, mRoughness);
-      mProgram->setFloatUniform(mAoUniformLoc, mAo);
-      mProgram->setVec3fUniform(mCameraPosUniformLoc, camera.getOrigin());
-      mProgram->setVec3fArrayUniform<4>(mLightPositionsUniformLoc, kLightPositions);
-      mProgram->setVec3fUniform(mLightColorUniformLoc, mLightColor);
+      // See layout in shaders.
+      Ubo::updateUbo(*mMatricesUbo, 0, sizeof(Neon::Mat4f), camera.getProjection().data());
+      Ubo::updateUbo(*mMatricesUbo, sizeof(Neon::Mat4f), sizeof(Neon::Mat4f), camera.getView().data());
+      
+      if (mRenderDebug)
+      {
+        mDebugProgram->use();
+        mDebugProgram->setIntUniform(mDebugModeUniformLoc, mDebugMode);
+      }
+      else
+      {
+        mProgram->use();
+        mProgram->setVec3fUniform(mAlbedoUniformLoc, mAlbedo);
+        mProgram->setFloatUniform(mMetallicUniformLoc, mMetallic);
+        mProgram->setFloatUniform(mRoughnessUniformLoc, mRoughness);
+        mProgram->setFloatUniform(mAoUniformLoc, mAo);
+        mProgram->setVec3fUniform(mCameraPosUniformLoc, camera.getOrigin());
+        mProgram->setVec3fArrayUniform<4>(mLightPositionsUniformLoc, kLightPositions);
+        mProgram->setVec3fUniform(mLightColorUniformLoc, mLightColor);
+      }
+      
+      if (mRenderDebug && mShowWireframe)
+        CHECK_GL_ERROR(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
+      else
+        CHECK_GL_ERROR(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
+      
       CHECK_GL_ERROR(glBindVertexArray(mGpuMesh.vao));
-      
-      if (mShowWireframe)  CHECK_GL_ERROR(glPolygonMode(GL_FRONT_AND_BACK, GL_LINE));
-			else CHECK_GL_ERROR(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
-      
       CHECK_GL_ERROR(glDrawElements(mGpuMesh.drawMode,
-                     								mGpuMesh.indexCount,
-                     								GL_UNSIGNED_INT,
-                     								nullptr));
+                                    mGpuMesh.indexCount,
+                                    GL_UNSIGNED_INT,
+                                    nullptr));
     }
   }
   
@@ -133,12 +169,23 @@ public:
                                      ImGuiWindowFlags_NoNav;
       if (ImGui::Begin("Controls", &open, windowFlags))
       {
-        ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&mAlbedo));
-        ImGui::SliderFloat("Metallic", &mMetallic, 0, 1);
-        ImGui::SliderFloat("Roughness", &mRoughness, 0, 1);
+        ImGui::Checkbox("Debug", &mRenderDebug);
         ImGui::Separator();
-        ImGui::SliderFloat("AO", &mAo, 0, 0.1);
-        ImGui::ColorEdit3("Light Color", reinterpret_cast<float*>(&mLightColor));
+        if (mRenderDebug)
+        {
+          const int n = sizeof(kDebugModes) / sizeof(*kDebugModes);
+          ImGui::ListBox("Mode", &mDebugMode, kDebugModes, n);
+          ImGui::Checkbox("Wireframe", &mShowWireframe);
+        }
+        else
+        {
+          ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&mAlbedo));
+          ImGui::SliderFloat("Metallic", &mMetallic, 0, 1);
+          ImGui::SliderFloat("Roughness", &mRoughness, 0, 1);
+          ImGui::Separator();
+          ImGui::SliderFloat("AO", &mAo, 0, 0.1);
+          ImGui::ColorEdit3("Light Color", reinterpret_cast<float*>(&mLightColor));
+        }
       }
       ImGui::End();
     }
@@ -149,18 +196,24 @@ public:
     if (mInitialised)
     {
       GpuMesh::releaseGpuMesh(mGpuMesh);
+      
       mProgram.release();
-      mProgram = nullptr;
+      mDebugProgram.release();
+      
+      Ubo::releaseUbo(*mMatricesUbo);
+      mMatricesUbo.release();
+      
       mInitialised = false;
     }
   }
   
 private:
   std::unique_ptr<ShaderProgram> mProgram;
+  std::unique_ptr<ShaderProgram> mDebugProgram;
   GpuMesh mGpuMesh;
   
-  GLint mViewUniformLoc;
-  GLint mProjUniformLoc;
+  std::unique_ptr<Ubo> mMatricesUbo;
+  
  	GLint mAlbedoUniformLoc;
  	GLint mMetallicUniformLoc;
  	GLint mRoughnessUniformLoc;
@@ -169,6 +222,9 @@ private:
  	GLint mLightPositionsUniformLoc;
  	GLint mLightColorUniformLoc;
   
+ 	GLint mDebugModeUniformLoc;
+  int mDebugMode = 0;
+
   Neon::Vec3f mAlbedo = Neon::Vec3f(0.0, 0.15, 0.9);
   float mMetallic = 0.1f;
   float mRoughness = 0.8f;
@@ -177,6 +233,7 @@ private:
 
   bool mShowWireframe = false;
   bool mInitialised = false;
+  bool mRenderDebug = true;
 };
 
 class MainApp : public GlfwApp

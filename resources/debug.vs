@@ -5,6 +5,7 @@ layout (location = 2) in vec2 aUv;
 
 out vec3 vPos;
 out vec3 vNormal;
+out vec2 vUv;
 
 layout (std140) uniform ubMatrices
 {
@@ -16,5 +17,6 @@ void main()
 {
   vPos = aPos.xyz;
   vNormal = aNormal;
+  vUv = aUv;
   gl_Position =  uProjection * uView * vec4(aPos, 1.0f);
 }
