@@ -43,6 +43,7 @@ namespace Akoylasar
     std::uint64_t getElapsedTime()
     {
       GLuint64 elapsedTime = 0;
+      // @todo: Fix INVALID_OPERATION error thrown on first invocation.
       CHECK_GL_ERROR(glGetQueryObjectui64v(mFrontQuery, GL_QUERY_RESULT, &elapsedTime));
       return elapsedTime;
     }

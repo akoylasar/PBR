@@ -12,7 +12,7 @@ namespace Akoylasar
     if (!createShader(fs, fsSource, GL_FRAGMENT_SHADER, fsError))
       DEBUG_ASSERT_MSG(false, fsError);
 
-    mProgramHandle = CHECK_GL_ERROR(glCreateProgram());
+    CHECK_GL_ERROR(mProgramHandle = glCreateProgram());
     
     CHECK_GL_ERROR(glAttachShader(mProgramHandle, vs));
     CHECK_GL_ERROR(glAttachShader(mProgramHandle, fs));
@@ -38,7 +38,9 @@ namespace Akoylasar
   
   GLint ShaderProgram::getUniformLocation(const std::string& uniformName) const
   {
-    return CHECK_GL_ERROR(glGetUniformLocation(mProgramHandle, uniformName.c_str()));
+    GLint result;
+    CHECK_GL_ERROR(result = glGetUniformLocation(mProgramHandle, uniformName.c_str()));
+    return result;
   }
   
   // @todo:
@@ -46,7 +48,9 @@ namespace Akoylasar
   // layout(std140, binding = 0) uniform Block { ... };
   GLuint ShaderProgram::getUniformBlockIndex(const std::string& uniformBlockName) const
   {
-    return CHECK_GL_ERROR(glGetUniformBlockIndex(mProgramHandle, uniformBlockName.c_str()));
+    GLuint result;
+    CHECK_GL_ERROR(result = glGetUniformBlockIndex(mProgramHandle, uniformBlockName.c_str()));
+    return result;
   }
 
   void ShaderProgram::setFloatUniform(const GLuint location, float value) const
@@ -81,7 +85,7 @@ namespace Akoylasar
 
   bool ShaderProgram::createShader(GLuint& shader, const std::string& source, GLenum type, std::string& error)
   {
-    shader = CHECK_GL_ERROR(glCreateShader(type));
+    CHECK_GL_ERROR(shader = glCreateShader(type));
     if (shader == 0) return false;
     
     const GLchar* sourceAddress = &source[0];

@@ -20,11 +20,13 @@
 #include "Ubo.hpp"
 
 using namespace Akoylasar;
+using ShaderInfo = std::pair<std::filesystem::path, std::string>;
+using ProgramInfo = std::array<ShaderInfo, 2>;
 
 namespace
 {
-  constexpr int kWindowWidth = 512;
-  constexpr int kWindowHeight = 512;
+  constexpr int kWindowWidth = 712;
+  constexpr int kWindowHeight = 712;
   constexpr int kGlMajor = 4;
   constexpr int kGlMinor = 1;
   const Neon::Vec3f kCameraOrigin {0.0f, 0.0f, 5.0f};
@@ -67,13 +69,71 @@ namespace
   }
 }
 
-class MainScene
+class EnvironmentScene
 {
 public:
   void initialise()
   {
-    using ShaderInfo = std::pair<std::filesystem::path, std::string>;
-    using ProgramInfo = std::array<ShaderInfo, 2>;
+    ProgramInfo environmentProgramInfo {std::make_pair("environment.vs", ""), std::make_pair("environment.fs", "")};
+    for (auto& pair : environmentProgramInfo)
+    {
+      auto& path = pair.first;
+      auto& str = pair.second;
+      if (readToString(path, str))
+      {
+        std::cerr << "Failed to load shader with path " << path << std::endl;
+        return;
+      }
+    }
+    
+    GLuint matricesBlockIndex;
+
+    mProgram = std::make_unique<ShaderProgram>(environmentProgramInfo.at(0).second, environmentProgramInfo.at(1).second);
+    matricesBlockIndex = mProgram->getUniformBlockIndex(kMatricesUbName);
+    mProgram->setUniformBlockBinding(matricesBlockIndex, kMatricesUniformBlockBinding);
+    
+    const auto cubeMesh = Mesh::buildCube();
+    mGpuMesh = GpuMesh::createGpuMesh(*cubeMesh);
+    
+    mInitialised = true;
+  }
+  
+  void render(double deltaTime, const Camera& camera)
+  {
+    if (mInitialised)
+    {
+      mProgram->use();
+      CHECK_GL_ERROR(glBindVertexArray(mGpuMesh.vao));
+      CHECK_GL_ERROR(glDrawElements(mGpuMesh.drawMode,
+                                    mGpuMesh.indexCount,
+                                    GL_UNSIGNED_INT,
+                                    nullptr));
+    }
+  }
+  
+  void shutdown()
+  {
+    if (mInitialised)
+    {
+      GpuMesh::releaseGpuMesh(mGpuMesh);
+      
+      mProgram.release();
+      
+      mInitialised = false;
+    }
+  }
+private:
+  private:
+  std::unique_ptr<ShaderProgram> mProgram;
+  GpuMesh mGpuMesh;
+  bool mInitialised = false;
+};
+
+class PbrScene
+{
+public:
+  void initialise()
+  {
     ProgramInfo pbrProgramInfo {std::make_pair("basicPbr.vs", ""), std::make_pair("basicPbr.fs", "")};
     ProgramInfo debugProgramInfo {std::make_pair("debug.vs", ""), std::make_pair("debug.fs", "")};
     
@@ -86,14 +146,12 @@ public:
         auto& str = pair.second;
         if (readToString(path, str))
         {
-          std::cerr << "Failed to load shader" << std::endl;
+          std::cerr << "Failed to load shader with path " << path << std::endl;
           return;
         }
       }
     }
 		
-    const auto matricesBlockSize = 2 * sizeof(Neon::Mat4f);
-    mMatricesUbo = Ubo::createUbo(matricesBlockSize, kMatricesUniformBlockBinding);
     GLuint matricesBlockIndex;
 
     mProgram = std::make_unique<ShaderProgram>(pbrProgramInfo.at(0).second, pbrProgramInfo.at(1).second);
@@ -104,7 +162,7 @@ public:
     matricesBlockIndex = mDebugProgram->getUniformBlockIndex(kMatricesUbName);
     mDebugProgram->setUniformBlockBinding(matricesBlockIndex, kMatricesUniformBlockBinding);
     
-    const auto sphereMesh = Mesh::buildSphere(3.0, 256, 256);
+    const auto sphereMesh = Mesh::buildSphere(1.0, 256, 256);
     mGpuMesh = GpuMesh::createGpuMesh(*sphereMesh);
     
     mAlbedoUniformLoc = mProgram->getUniformLocation(kAlbedoUniformName);
@@ -124,10 +182,6 @@ public:
   {
     if (mInitialised)
     {
-      // See layout in shaders.
-      Ubo::updateUbo(*mMatricesUbo, 0, sizeof(Neon::Mat4f), camera.getProjection().data());
-      Ubo::updateUbo(*mMatricesUbo, sizeof(Neon::Mat4f), sizeof(Neon::Mat4f), camera.getView().data());
-      
       if (mRenderDebug)
       {
         mDebugProgram->use();
@@ -197,11 +251,8 @@ public:
     {
       GpuMesh::releaseGpuMesh(mGpuMesh);
       
-      mProgram.release();
-      mDebugProgram.release();
-      
-      Ubo::releaseUbo(*mMatricesUbo);
-      mMatricesUbo.release();
+      mDebugProgram.reset();
+      mProgram.reset();
       
       mInitialised = false;
     }
@@ -211,9 +262,7 @@ private:
   std::unique_ptr<ShaderProgram> mProgram;
   std::unique_ptr<ShaderProgram> mDebugProgram;
   GpuMesh mGpuMesh;
-  
-  std::unique_ptr<Ubo> mMatricesUbo;
-  
+    
  	GLint mAlbedoUniformLoc;
  	GLint mMetallicUniformLoc;
  	GLint mRoughnessUniformLoc;
@@ -233,7 +282,7 @@ private:
 
   bool mShowWireframe = false;
   bool mInitialised = false;
-  bool mRenderDebug = true;
+  bool mRenderDebug = false;
 };
 
 class MainApp : public GlfwApp
@@ -250,7 +299,10 @@ public:
                                      kAspect,
                                      kNear,
                                      kFar)),
-  	mMainScene(std::make_unique<MainScene>())
+  	mMatricesUbo(nullptr),
+  	mPbrScene(std::make_unique<PbrScene>()),
+  	mEnvironmentScene(std::make_unique<EnvironmentScene>()),
+  	mShowEnvironment(true)
   {}
   ~MainApp() override = default;
 protected:
@@ -269,8 +321,13 @@ protected:
     
     CHECK_GL_ERROR(glEnable(GL_DEPTH_TEST));
     CHECK_GL_ERROR(glEnable(GL_CULL_FACE));
+    
+    // Setup matrices UBO
+    const auto matricesBlockSize = 2 * sizeof(Neon::Mat4f);
+    mMatricesUbo = Ubo::createUbo(matricesBlockSize, kMatricesUniformBlockBinding);
 
-    mMainScene->initialise();
+    mPbrScene->initialise();
+    mEnvironmentScene->initialise();
   }
   
   void onFramebufferSize(int width, int height) override
@@ -288,9 +345,19 @@ protected:
   void draw(double deltaTime) override
   {
     CHECK_GL_ERROR(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
-
-    mMainScene->render(deltaTime, *mCamera);
     
+    Ubo::updateUbo(*mMatricesUbo, 0, sizeof(Neon::Mat4f), mCamera->getProjection().data());
+    Ubo::updateUbo(*mMatricesUbo, sizeof(Neon::Mat4f), sizeof(Neon::Mat4f), mCamera->getView().data());
+
+    if (mShowEnvironment)
+    {
+      glDepthFunc(GL_LEQUAL);
+      mEnvironmentScene->render(deltaTime, *mCamera);
+    }
+    else
+      glDepthFunc(GL_LESS);
+    mPbrScene->render(deltaTime, *mCamera);
+
     drawUI(deltaTime);
 
     mProfiler->swapBuffers();
@@ -300,6 +367,12 @@ protected:
   
   void shutDown() override
   {
+    mEnvironmentScene.reset();
+    mPbrScene.reset();
+    
+    Ubo::releaseUbo(*mMatricesUbo);
+    mMatricesUbo.reset();
+    
     // dear ImGui cleanup.
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
@@ -316,7 +389,7 @@ private:
     ImGui::NewFrame();
     
     double uiMs = mUiTs->getElapsedTime() * fromNsToMs;
-    mMainScene->drawUI(deltaTime);
+    mPbrScene->drawUI(deltaTime);
     
     ImVec2 windowPos, windowPosPivot;
     ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPosPivot);
@@ -327,11 +400,13 @@ private:
     															 ImGuiWindowFlags_NoSavedSettings |
     															 ImGuiWindowFlags_NoFocusOnAppearing |
     															 ImGuiWindowFlags_NoNav;
-    if (ImGui::Begin("Frame statistics", &open, windowFlags))
+    if (ImGui::Begin("General", &open, windowFlags))
     {
       ImGui::Text("UI (GPU): %.2f(ms)", uiMs);
       ImGui::Separator();
       ImGui::Text("Frame time: %.2f(ms)", deltaTime * 1000.0);
+      ImGui::Separator();
+      ImGui::Checkbox("Show environment", &mShowEnvironment);
     }
     ImGui::End();
 
@@ -345,7 +420,10 @@ private:
   std::unique_ptr<Profiler> mProfiler;
   TimeStamp* mUiTs;
   std::unique_ptr<Camera> mCamera;
-  std::unique_ptr<MainScene> mMainScene;
+  std::unique_ptr<Ubo> mMatricesUbo;
+  std::unique_ptr<PbrScene> mPbrScene;
+  std::unique_ptr<EnvironmentScene> mEnvironmentScene;
+  bool mShowEnvironment;
 };
 
 int main()

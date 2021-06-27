@@ -26,8 +26,8 @@ namespace Akoylasar
 	#define CHECK_GL_ERROR(cmd)\
 	[&]()\
 	{\
+		(cmd);\
 		Akoylasar::checkGLError(__FILE__, __LINE__);\
-		return (cmd);\
   }()
 #else
 	#define CHECK_GL_ERROR(cmd) (cmd)
