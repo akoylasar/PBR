@@ -17,8 +17,8 @@ namespace Akoylasar
     ShaderProgram(const std::string& vs, const std::string& fs);
     ~ShaderProgram();
         
-    GLint getUniformLocation(const std::string& uniformName) const;
-    GLuint getUniformBlockIndex(const std::string& uniformBlockName) const;
+    GLint getUniformLocation(const char* const uniformName) const;
+    GLuint getUniformBlockIndex(const char* const uniformBlockName) const;
     
     void setFloatUniform(const GLuint location, float value) const;
     void setVec2fUniform(const GLuint location, const Neon::Vec2f& vec) const;

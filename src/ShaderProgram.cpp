@@ -36,20 +36,20 @@ namespace Akoylasar
     CHECK_GL_ERROR(glDeleteProgram(mProgramHandle));
   }
   
-  GLint ShaderProgram::getUniformLocation(const std::string& uniformName) const
+  GLint ShaderProgram::getUniformLocation(const char* const uniformName) const
   {
     GLint result;
-    CHECK_GL_ERROR(result = glGetUniformLocation(mProgramHandle, uniformName.c_str()));
+    CHECK_GL_ERROR(result = glGetUniformLocation(mProgramHandle, uniformName));
     return result;
   }
   
   // @todo:
   // In OpenGL 4.2 and onward we could use this
   // layout(std140, binding = 0) uniform Block { ... };
-  GLuint ShaderProgram::getUniformBlockIndex(const std::string& uniformBlockName) const
+  GLuint ShaderProgram::getUniformBlockIndex(const char* const uniformBlockName) const
   {
     GLuint result;
-    CHECK_GL_ERROR(result = glGetUniformBlockIndex(mProgramHandle, uniformBlockName.c_str()));
+    CHECK_GL_ERROR(result = glGetUniformBlockIndex(mProgramHandle, uniformBlockName));
     return result;
   }
 

@@ -22,6 +22,9 @@ target_sources(${PROJECT_NAME} PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/ShaderProgram.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/Camera.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/Ubo.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/PbrScene.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/EnvironmentScene.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/Common.hpp
 
   ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/GlfwApp.cpp
@@ -29,6 +32,8 @@ target_sources(${PROJECT_NAME} PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src/Mesh.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/ShaderProgram.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/Camera.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/PbrScene.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/EnvironmentScene.cpp
 )
 
 if (MSVC)
