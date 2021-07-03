@@ -11,6 +11,9 @@
 #include <backends/imgui_impl_glfw.h>
 #include <backends/imgui_impl_opengl3.h>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
+
 #include "GlfwApp.hpp"
 #include "Profiler.hpp"
 #include "Debug.hpp"
@@ -74,7 +77,8 @@ class EnvironmentScene
 public:
   void initialise()
   {
-    ProgramInfo environmentProgramInfo {std::make_pair("environment.vs", ""), std::make_pair("environment.fs", "")};
+    // Load shader sources from disk.
+    ProgramInfo environmentProgramInfo {std::make_pair("shaders/environment.vs", ""), std::make_pair("shaders/environment.fs", "")};
     for (auto& pair : environmentProgramInfo)
     {
       auto& path = pair.first;
@@ -86,6 +90,33 @@ public:
       }
     }
     
+    // Load image from disk and create a GPU texture from it.
+    int width, height, numComps;
+    std::filesystem::path imagePath {"images/Barce_Rooftop_C_3k.hdr"};
+    float* image = stbi_loadf(imagePath.c_str(), &width, &height, &numComps, 0);
+    if (!image)
+    {
+      std::cerr << "Failed to load texture with path " << imagePath << std::endl;
+      return;
+    }
+    CHECK_GL_ERROR(glGenTextures(1, &mTexture));
+    CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, mTexture));
+    CHECK_GL_ERROR(glTexImage2D(GL_TEXTURE_2D,
+                    						0, // level
+                    						GL_RGB16F, // internal format
+                    						width,
+                    						height,
+                    						0, // border
+                    						GL_RGB,
+                    						GL_FLOAT, // data format
+                    						image));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    stbi_image_free(image);
+
+    // Create GPU shaders.
     GLuint matricesBlockIndex;
 
     mProgram = std::make_unique<ShaderProgram>(environmentProgramInfo.at(0).second, environmentProgramInfo.at(1).second);
@@ -102,6 +133,9 @@ public:
   {
     if (mInitialised)
     {
+      CHECK_GL_ERROR(glActiveTexture(GL_TEXTURE0));
+      CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, mTexture));
+
       mProgram->use();
       CHECK_GL_ERROR(glBindVertexArray(mGpuMesh.vao));
       CHECK_GL_ERROR(glDrawElements(mGpuMesh.drawMode,
@@ -119,11 +153,13 @@ public:
       
       mProgram.release();
       
+      CHECK_GL_ERROR(glDeleteTextures(1, &mTexture));
       mInitialised = false;
     }
   }
 private:
   private:
+  GLuint mTexture;
   std::unique_ptr<ShaderProgram> mProgram;
   GpuMesh mGpuMesh;
   bool mInitialised = false;
@@ -134,8 +170,8 @@ class PbrScene
 public:
   void initialise()
   {
-    ProgramInfo pbrProgramInfo {std::make_pair("basicPbr.vs", ""), std::make_pair("basicPbr.fs", "")};
-    ProgramInfo debugProgramInfo {std::make_pair("debug.vs", ""), std::make_pair("debug.fs", "")};
+    ProgramInfo pbrProgramInfo {std::make_pair("shaders/basicPbr.vs", ""), std::make_pair("shaders/basicPbr.fs", "")};
+    ProgramInfo debugProgramInfo {std::make_pair("shaders/debug.vs", ""), std::make_pair("shaders/debug.fs", "")};
     
     std::array<ProgramInfo*, 2> programInfos {&pbrProgramInfo, &debugProgramInfo};
     for (auto programInfo : programInfos)

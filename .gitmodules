@@ -13,3 +13,6 @@
 [submodule "external/Neon"]
 	path = external/Neon
 	url = https://github.com/akoylasar/Neon
+[submodule "external/stb"]
+	path = external/stb
+	url = https://github.com/nothings/stb
