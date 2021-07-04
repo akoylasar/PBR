@@ -1,5 +1,7 @@
 #include "EnvironmentScene.hpp"
 
+#include <thread>
+
 #include <stb_image.h>
 
 #include "Common.hpp"
@@ -27,32 +29,10 @@ namespace Akoylasar
         return;
       }
     }
-    
-    // Load image from disk and create a GPU texture from it.
-    int width, height, numComps;
-    std::filesystem::path imagePath {"images/Barce_Rooftop_C_3k.hdr"};
-    float* image = stbi_loadf(imagePath.c_str(), &width, &height, &numComps, 0);
-    if (!image)
-    {
-      std::cerr << "Failed to load texture with path " << imagePath << std::endl;
-      return;
-    }
-    CHECK_GL_ERROR(glGenTextures(1, &mTexture));
-    CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, mTexture));
-    CHECK_GL_ERROR(glTexImage2D(GL_TEXTURE_2D,
-                                0, // level
-                                GL_RGB16F, // internal format
-                                width,
-                                height,
-                                0, // border
-                                GL_RGB,
-                                GL_FLOAT, // data format
-                                image));
-    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
-    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
-    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
-    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-    stbi_image_free(image);
+        
+    // Launch a separate thread to load image from disk without blocking main app.
+    std::thread t(&EnvironmentScene::loadImage, this);
+    t.detach();
 
     // Create GPU shaders.
     GLuint matricesBlockIndex;
@@ -63,8 +43,6 @@ namespace Akoylasar
     
     const auto cubeMesh = Mesh::buildCube();
     mGpuMesh = GpuMesh::createGpuMesh(*cubeMesh);
-    
-    mInitialised = true;
   }
   
   void EnvironmentScene::render(double deltaTime, const Camera& camera)
@@ -81,6 +59,15 @@ namespace Akoylasar
                                     GL_UNSIGNED_INT,
                                     nullptr));
     }
+    else
+    {
+      ImageData* image = mImage.exchange(nullptr, std::memory_order_acq_rel);
+      if (image)
+      {
+        createGpuTexture(image);
+        mInitialised = true;
+      }
+    }
   }
   
   void EnvironmentScene::shutdown()
@@ -94,5 +81,44 @@ namespace Akoylasar
       CHECK_GL_ERROR(glDeleteTextures(1, &mTexture));
       mInitialised = false;
     }
+  }
+  
+  void EnvironmentScene::loadImage()
+  {
+    // Load image from disk and create a GPU texture from it.
+    std::filesystem::path imagePath {"images/Barce_Rooftop_C_3k.hdr"};
+    int w, h, numComps;
+    float* data = stbi_loadf(imagePath.c_str(), &w, &h, &numComps, 0);
+    if (!data)
+    {
+      std::cerr << "Failed to load texture with path " << imagePath << std::endl;
+      return;
+    }
+    ImageData* image = new ImageData;
+    image->width = w;
+    image->height = h;
+    image->image = data;
+    mImage.store(image, std::memory_order_release);
+  }
+  
+  void EnvironmentScene::createGpuTexture(ImageData* image)
+  {
+    CHECK_GL_ERROR(glGenTextures(1, &mTexture));
+    CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, mTexture));
+    CHECK_GL_ERROR(glTexImage2D(GL_TEXTURE_2D,
+                                0, // level
+                                GL_RGB16F, // internal format
+                                image->width,
+                                image->height,
+                                0, // border
+                                GL_RGB,
+                                GL_FLOAT, // data format
+                                image->image));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    stbi_image_free(image->image);
+    delete image;
   }
 }
