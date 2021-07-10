@@ -6,7 +6,7 @@ in vec2 vUv;
 
 out vec4 FragColor;
 
-uniform sampler2D sEnvironment;
+uniform sampler2D sBackground;
 
 vec2 cartesianToSpherical(vec3 p)
 {
@@ -27,13 +27,6 @@ vec2 shpericalToUvSpace(vec2 p)
 void main()
 {
   vec2 uv = shpericalToUvSpace(cartesianToSpherical(normalize(vPos)));
-
-  vec3 color = texture(sEnvironment, uv).rgb;
-  
-  // Tone-mapping
-  color = color / (vec3(1.0) + color);
-  // Gamma correction
-  color = pow(color, vec3(1.0 / 2.2));
-
+  vec3 color = texture(sBackground, uv).rgb;
   FragColor = vec4(color, 1.0);
 }

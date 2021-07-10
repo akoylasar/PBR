@@ -20,6 +20,7 @@
 namespace Akoylasar
 {
   void checkGLError(const char* file, int line);
+  void clearGLErrors();
 }
 
 #ifndef NDEBUG

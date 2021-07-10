@@ -1,16 +1,23 @@
 #include "EnvironmentScene.hpp"
 
 #include <thread>
+#include <array>
 
 #include <stb_image.h>
 
-#include "Common.hpp"
+#include <imgui.h>
 
+#include <Neon.hpp>
+
+#include "Common.hpp"
 
 namespace
 {
   const GLuint kMatricesUniformBlockBinding = 0;
   const char* const kMatricesUbName = "ubMatrices";
+  const char* const kProjection = "uProjection";
+  const char* const kView = "uView";
+  const char* const kMixFactor = "uMixFactor";
 }
 
 namespace Akoylasar
@@ -18,8 +25,8 @@ namespace Akoylasar
   void EnvironmentScene::initialise()
   {
     // Load shader sources from disk.
-    ProgramInfo environmentProgramInfo {std::make_pair("shaders/environment.vs", ""), std::make_pair("shaders/environment.fs", "")};
-    for (auto& pair : environmentProgramInfo)
+    ProgramInfo backgroundProgramInfo {std::make_pair("shaders/background.vs", ""), std::make_pair("shaders/background.fs", "")};
+    for (auto& pair : backgroundProgramInfo)
     {
       auto& path = pair.first;
       auto& str = pair.second;
@@ -29,44 +36,60 @@ namespace Akoylasar
         return;
       }
     }
-        
-    // Launch a separate thread to load image from disk without blocking main app.
-    std::thread t(&EnvironmentScene::loadImage, this);
-    t.detach();
 
     // Create GPU shaders.
     GLuint matricesBlockIndex;
 
-    mProgram = std::make_unique<ShaderProgram>(environmentProgramInfo.at(0).second, environmentProgramInfo.at(1).second);
-    matricesBlockIndex = mProgram->getUniformBlockIndex(kMatricesUbName);
-    mProgram->setUniformBlockBinding(matricesBlockIndex, kMatricesUniformBlockBinding);
+    mBackgroundProgram = std::make_unique<ShaderProgram>(backgroundProgramInfo.at(0).second, backgroundProgramInfo.at(1).second);
+    matricesBlockIndex = mBackgroundProgram->getUniformBlockIndex(kMatricesUbName);
+    mBackgroundProgram->setUniformBlockBinding(matricesBlockIndex, kMatricesUniformBlockBinding);
+    mMixFactorUniformLoc = mBackgroundProgram->getUniformLocation(kMixFactor);
+    
+    CHECK_GL_ERROR(glGenTextures(1, &mTexture));
+    CHECK_GL_ERROR(glGenTextures(1, &mIrradianceMap));
     
     const auto cubeMesh = Mesh::buildCube();
-    mGpuMesh = GpuMesh::createGpuMesh(*cubeMesh);
+    mCubeMesh = GpuMesh::createGpuMesh(*cubeMesh);
+    
+    // Launch a separate thread to load image from disk without blocking main app.
+    std::thread t(&EnvironmentScene::loadImage, this);
+    t.detach();
   }
   
   void EnvironmentScene::render(double deltaTime, const Camera& camera)
   {
     if (mInitialised)
     {
+      mBackgroundProgram->use();
+      
       CHECK_GL_ERROR(glActiveTexture(GL_TEXTURE0));
       CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, mTexture));
+      CHECK_GL_ERROR(glActiveTexture(GL_TEXTURE1));
+      CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_CUBE_MAP, mIrradianceMap));
+      
+      mBackgroundProgram->setIntUniform(mBackgroundProgram->getUniformLocation("sBackground"), 0);
+      mBackgroundProgram->setIntUniform(mBackgroundProgram->getUniformLocation("sIrradianceMap"), 1);
 
-      mProgram->use();
-      CHECK_GL_ERROR(glBindVertexArray(mGpuMesh.vao));
-      CHECK_GL_ERROR(glDrawElements(mGpuMesh.drawMode,
-                                    mGpuMesh.indexCount,
-                                    GL_UNSIGNED_INT,
-                                    nullptr));
+      mBackgroundProgram->setFloatUniform(mMixFactorUniformLoc, mMixFactor);
+      
+      mCubeMesh.draw();
     }
     else
     {
       ImageData* image = mImage.exchange(nullptr, std::memory_order_acq_rel);
       if (image)
       {
-        createGpuTexture(image);
+        steupResources(image);
         mInitialised = true;
       }
+    }
+  }
+  
+  void EnvironmentScene::drawUI(double deltaTime)
+  {
+    if (mInitialised)
+    {
+      ImGui::SliderFloat("Mix factor", &mMixFactor, 0.0f, 1.0f);
     }
   }
   
@@ -74,11 +97,12 @@ namespace Akoylasar
   {
     if (mInitialised)
     {
-      GpuMesh::releaseGpuMesh(mGpuMesh);
+      GpuMesh::releaseGpuMesh(mCubeMesh);
       
-      mProgram.release();
+      mBackgroundProgram.release();
       
       CHECK_GL_ERROR(glDeleteTextures(1, &mTexture));
+      CHECK_GL_ERROR(glDeleteTextures(1, &mIrradianceMap));
       mInitialised = false;
     }
   }
@@ -88,6 +112,7 @@ namespace Akoylasar
     // Load image from disk and create a GPU texture from it.
     std::filesystem::path imagePath {"images/Barce_Rooftop_C_3k.hdr"};
     int w, h, numComps;
+    stbi_set_flip_vertically_on_load(true);
     float* data = stbi_loadf(imagePath.c_str(), &w, &h, &numComps, 0);
     if (!data)
     {
@@ -101,9 +126,16 @@ namespace Akoylasar
     mImage.store(image, std::memory_order_release);
   }
   
-  void EnvironmentScene::createGpuTexture(ImageData* image)
+  void EnvironmentScene::steupResources(ImageData* image)
   {
-    CHECK_GL_ERROR(glGenTextures(1, &mTexture));
+    setupBackgroundTexture(image);
+    setupIrradianceMap(image);
+    stbi_image_free(image->image);
+    delete image;
+  }
+  
+  void EnvironmentScene::setupBackgroundTexture(ImageData* image)
+  {
     CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, mTexture));
     CHECK_GL_ERROR(glTexImage2D(GL_TEXTURE_2D,
                                 0, // level
@@ -118,7 +150,105 @@ namespace Akoylasar
     CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
     CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
     CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
-    stbi_image_free(image->image);
-    delete image;
+  }
+  
+  void EnvironmentScene::setupIrradianceMap(ImageData* image)
+  {
+    ProgramInfo irradianceProgramInfo {std::make_pair("shaders/irradianceComputer.vs", ""), std::make_pair("shaders/irradianceComputer.fs", "")};
+    for (auto& pair : irradianceProgramInfo)
+    {
+      auto& path = pair.first;
+      auto& str = pair.second;
+      if (Common::readToString(path, str))
+      {
+        std::cerr << "Failed to load shader with path " << path << std::endl;
+        return;
+      }
+    }
+    
+    auto program = std::make_unique<ShaderProgram>(irradianceProgramInfo.at(0).second, irradianceProgramInfo.at(1).second);
+    renderToCubeMap(mTexture, false, mIrradianceMap, 32, 32, *program, mCubeMesh);
+
+    program.reset();
+  }
+  
+  void EnvironmentScene::renderToCubeMap(GLuint inputTexture,
+                                         bool isCubeMap,
+                                         GLuint outputTexture,
+                                         unsigned int width,
+                                         unsigned int height,
+                                         const ShaderProgram& program,
+                                         const GpuMesh& cubeMesh)
+  {
+    constexpr int kNumCubmapFaces = 6;
+
+    // Create FBO and RBO.
+    GLuint fbo, rbo;
+    CHECK_GL_ERROR(glGenFramebuffers(1, &fbo));
+    CHECK_GL_ERROR(glGenRenderbuffers(1, &rbo));
+    
+    // Allocate size for the cubemap sides and configure its sampler.
+    CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_CUBE_MAP, outputTexture));
+    for (unsigned int i = 0; i < 6; ++i)
+      CHECK_GL_ERROR(glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, nullptr));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+    CHECK_GL_ERROR(glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+    
+    // Setup the framebuffer state.
+    CHECK_GL_ERROR(glBindFramebuffer(GL_FRAMEBUFFER, fbo));
+    CHECK_GL_ERROR(glBindRenderbuffer(GL_RENDERBUFFER, rbo));
+    // Allocate size for the RBO.
+    CHECK_GL_ERROR(glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24, width, height));
+    // Bind the RBO to the FBO.
+    CHECK_GL_ERROR(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rbo));
+    
+    GLenum status;
+    CHECK_GL_ERROR(status = glCheckFramebufferStatus(GL_FRAMEBUFFER));
+    DEBUG_ASSERT_MSG(status == GL_FRAMEBUFFER_COMPLETE, "Invalid framebuffer");
+    
+    program.use();
+    
+    CHECK_GL_ERROR(glActiveTexture(GL_TEXTURE0));
+    CHECK_GL_ERROR(glBindTexture(isCubeMap ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D, inputTexture));
+    program.setIntUniform(program.getUniformLocation("sBackground"), 0);
+    
+    // Resize viewport.
+    GLint viewPort[4];
+    CHECK_GL_ERROR(glGetIntegerv(GL_VIEWPORT, viewPort));
+    CHECK_GL_ERROR(glViewport(0, 0, width, height));
+
+    // Setup projection and view matrices.
+    Neon::Mat4f proj = Neon::makePerspective((float)Neon::kPi / 2.0f, 1.0f, 0.1f, 2.0f);
+    std::array<Neon::Mat4f, kNumCubmapFaces> views
+    {
+      Neon::makeLookAt(Neon::Vec3f(0.0f), Neon::Vec3f(1.0f,  0.0f,  0.0f), Neon::Vec3f(0.0f, -1.0f,  0.0f)), // origin, look at, up
+      Neon::makeLookAt(Neon::Vec3f(0.0f), Neon::Vec3f(-1.0f,  0.0f,  0.0f), Neon::Vec3f(0.0f, -1.0f,  0.0f)),
+      Neon::makeLookAt(Neon::Vec3f(0.0f), Neon::Vec3f(0.0f,  1.0f,  0.0f), Neon::Vec3f(0.0f,  0.0f,  1.0f)),
+      Neon::makeLookAt(Neon::Vec3f(0.0f), Neon::Vec3f(0.0f, -1.0f,  0.0f), Neon::Vec3f(0.0f,  0.0f, -1.0f)),
+      Neon::makeLookAt(Neon::Vec3f(0.0f), Neon::Vec3f(0.0f,  0.0f,  1.0f), Neon::Vec3f(0.0f, -1.0f,  0.0)),
+      Neon::makeLookAt(Neon::Vec3f(0.0f), Neon::Vec3f(0.0f,  0.0f, -1.0f), Neon::Vec3f(0.0f, -1.0f,  0.0f))
+    };
+    
+    // Render.
+    GLuint projLoc = program.getUniformLocation(kProjection);
+    program.setMat4fUniform(projLoc, proj);
+    GLuint viewLoc = program.getUniformLocation(kView);
+    for (int i = 0; i < kNumCubmapFaces; ++i)
+    {
+      program.setMat4fUniform(viewLoc, views[i]);
+      CHECK_GL_ERROR(glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, outputTexture, 0));
+  	  CHECK_GL_ERROR(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+      cubeMesh.draw();
+    }
+    
+    CHECK_GL_ERROR(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    CHECK_GL_ERROR(glDeleteRenderbuffers(1, &rbo));
+    CHECK_GL_ERROR(glDeleteFramebuffers(1, &fbo));
+    
+    // Restore viewport size.
+    CHECK_GL_ERROR(glViewport(viewPort[0], viewPort[1], viewPort[2], viewPort[3]));
   }
 }

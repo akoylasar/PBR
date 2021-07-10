@@ -73,7 +73,7 @@ namespace Akoylasar
     CHECK_GL_ERROR(glUniformMatrix4fv(location, 1, GL_FALSE, mat.data()));
   }
   
-  void ShaderProgram::setIntUniform(const GLuint location, int value)
+  void ShaderProgram::setIntUniform(const GLuint location, int value) const
   {
     CHECK_GL_ERROR(glUniform1i(location, value));
   }

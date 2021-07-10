@@ -29,4 +29,9 @@ namespace Akoylasar
       std::cerr << error << " | " << file << " (" << line << ")" << std::endl;
     }
   }
+  
+  void clearGLErrors()
+  {
+    while (GLenum errorCode = glGetError()) {}
+  }
 }

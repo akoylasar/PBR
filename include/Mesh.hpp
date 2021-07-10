@@ -39,6 +39,7 @@ namespace Akoylasar
                                  GLuint normalAttribuIndex = 1, // layout (location = 1) in shader.
                                  GLuint uvAttribuIndex = 2); // layout (location = 2) in shader.
     static void releaseGpuMesh(GpuMesh& gpuMesh);
+    void draw() const;
     // @todo(Fouad): Add overload for adding GLB model.
   };
 }

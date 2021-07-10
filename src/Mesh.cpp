@@ -202,4 +202,13 @@ namespace Akoylasar
     gpuMesh.ebo = 0;
     gpuMesh.vao = 0;
   }
+  
+  void GpuMesh::draw() const
+  {
+    CHECK_GL_ERROR(glBindVertexArray(vao));
+    CHECK_GL_ERROR(glDrawElements(drawMode,
+                                  indexCount,
+                                  GL_UNSIGNED_INT,
+                                  nullptr));
+  }
 }

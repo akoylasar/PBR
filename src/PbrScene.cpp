@@ -59,7 +59,7 @@ namespace Akoylasar
      matricesBlockIndex = mDebugProgram->getUniformBlockIndex(kMatricesUbName);
      mDebugProgram->setUniformBlockBinding(matricesBlockIndex, kMatricesUniformBlockBinding);
      
-     const auto sphereMesh = Mesh::buildSphere(1.0, 256, 256);
+     const auto sphereMesh = Mesh::buildSphere(3.0, 256, 256);
      mGpuMesh = GpuMesh::createGpuMesh(*sphereMesh);
      
      mAlbedoUniformLoc = mProgram->getUniformLocation(kAlbedoUniformName);
@@ -101,11 +101,7 @@ namespace Akoylasar
        else
          CHECK_GL_ERROR(glPolygonMode(GL_FRONT_AND_BACK, GL_FILL));
        
-       CHECK_GL_ERROR(glBindVertexArray(mGpuMesh.vao));
-       CHECK_GL_ERROR(glDrawElements(mGpuMesh.drawMode,
-                                     mGpuMesh.indexCount,
-                                     GL_UNSIGNED_INT,
-                                     nullptr));
+       mGpuMesh.draw();
      }
    }
    
@@ -113,32 +109,23 @@ namespace Akoylasar
    {
      if (mInitialised)
      {
-       bool open = true;
-       ImGuiWindowFlags windowFlags = ImGuiWindowFlags_NoDecoration |
-                                      ImGuiWindowFlags_AlwaysAutoResize |
-                                      ImGuiWindowFlags_NoFocusOnAppearing |
-                                      ImGuiWindowFlags_NoNav;
-       if (ImGui::Begin("Controls", &open, windowFlags))
+       ImGui::Checkbox("Debug", &mRenderDebug);
+       ImGui::Separator();
+       if (mRenderDebug)
        {
-         ImGui::Checkbox("Debug", &mRenderDebug);
-         ImGui::Separator();
-         if (mRenderDebug)
-         {
-           const int n = sizeof(kDebugModes) / sizeof(*kDebugModes);
-           ImGui::ListBox("Mode", &mDebugMode, kDebugModes, n);
-           ImGui::Checkbox("Wireframe", &mShowWireframe);
-         }
-         else
-         {
-           ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&mAlbedo));
-           ImGui::SliderFloat("Metallic", &mMetallic, 0, 1);
-           ImGui::SliderFloat("Roughness", &mRoughness, 0, 1);
-           ImGui::Separator();
-           ImGui::SliderFloat("AO", &mAo, 0, 0.1);
-           ImGui::ColorEdit3("Light Color", reinterpret_cast<float*>(&mLightColor));
-         }
+         const int n = sizeof(kDebugModes) / sizeof(*kDebugModes);
+         ImGui::ListBox("Mode", &mDebugMode, kDebugModes, n);
+         ImGui::Checkbox("Wireframe", &mShowWireframe);
        }
-       ImGui::End();
+       else
+       {
+         ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&mAlbedo));
+         ImGui::SliderFloat("Metallic", &mMetallic, 0, 1);
+         ImGui::SliderFloat("Roughness", &mRoughness, 0, 1);
+         ImGui::Separator();
+         ImGui::SliderFloat("AO", &mAo, 0, 0.1);
+         ImGui::ColorEdit3("Light Color", reinterpret_cast<float*>(&mLightColor));
+       }
      }
    }
    

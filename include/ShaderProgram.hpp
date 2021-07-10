@@ -23,7 +23,7 @@ namespace Akoylasar
     void setFloatUniform(const GLuint location, float value) const;
     void setVec2fUniform(const GLuint location, const Neon::Vec2f& vec) const;
     void setVec3fUniform(const GLuint location, const Neon::Vec3f& vec) const;
-    void setIntUniform(const GLuint location, int value);
+    void setIntUniform(const GLuint location, int value) const;
     template<int N> void setVec3fArrayUniform(const GLuint location, const std::array<Neon::Vec3f, N>& value) const
     {
       CHECK_GL_ERROR(glUniform3fv(location, N, reinterpret_cast<const float*>(value.data())));

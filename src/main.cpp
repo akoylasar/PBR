@@ -55,8 +55,7 @@ public:
                                      kFar)),
   	mMatricesUbo(nullptr),
   	mPbrScene(std::make_unique<PbrScene>()),
-  	mEnvironmentScene(std::make_unique<EnvironmentScene>()),
-  	mShowEnvironment(true)
+  	mEnvironmentScene(std::make_unique<EnvironmentScene>())
   {}
   ~MainApp() override = default;
 protected:
@@ -74,7 +73,6 @@ protected:
     mUiTs = &mProfiler->createTimeStamp();
     
     CHECK_GL_ERROR(glEnable(GL_DEPTH_TEST));
-    CHECK_GL_ERROR(glEnable(GL_CULL_FACE));
     
     // Setup matrices UBO
     const auto matricesBlockSize = 2 * sizeof(Neon::Mat4f);
@@ -82,6 +80,14 @@ protected:
 
     mPbrScene->initialise();
     mEnvironmentScene->initialise();
+    
+    clearGLErrors();
+  }
+  
+  void onKey(int key, int scanCode, int action, int mods) override
+  {
+    mSceneIndex += static_cast<int>(key == GLFW_KEY_F && action == GLFW_PRESS);
+    mSceneIndex %= 3;
   }
   
   void onFramebufferSize(int width, int height) override
@@ -103,14 +109,19 @@ protected:
     Ubo::updateUbo(*mMatricesUbo, 0, sizeof(Neon::Mat4f), mCamera->getProjection().data());
     Ubo::updateUbo(*mMatricesUbo, sizeof(Neon::Mat4f), sizeof(Neon::Mat4f), mCamera->getView().data());
 
-    if (mShowEnvironment)
+    if (mSceneIndex == 0)
     {
-      glDepthFunc(GL_LEQUAL);
+      CHECK_GL_ERROR(glDepthFunc(GL_LESS));
+      mPbrScene->render(deltaTime, *mCamera);
+    }
+    else if (mSceneIndex == 1)
+    {
+      CHECK_GL_ERROR(glDepthFunc(GL_LEQUAL));
       mEnvironmentScene->render(deltaTime, *mCamera);
     }
-    else
-      glDepthFunc(GL_LESS);
-    mPbrScene->render(deltaTime, *mCamera);
+    else if (mSceneIndex == 2)
+    {
+    }
 
     drawUI(deltaTime);
 
@@ -143,7 +154,14 @@ private:
     ImGui::NewFrame();
     
     double uiMs = mUiTs->getElapsedTime() * fromNsToMs;
-    mPbrScene->drawUI(deltaTime);
+    
+    if (mSceneIndex == 0)
+      mPbrScene->drawUI(deltaTime);
+    else if (mSceneIndex == 1)
+      mEnvironmentScene->drawUI(deltaTime);
+    else if (mSceneIndex == 2)
+    {
+    }
     
     ImVec2 windowPos, windowPosPivot;
     ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPosPivot);
@@ -159,8 +177,6 @@ private:
       ImGui::Text("UI (GPU): %.2f(ms)", uiMs);
       ImGui::Separator();
       ImGui::Text("Frame time: %.2f(ms)", deltaTime * 1000.0);
-      ImGui::Separator();
-      ImGui::Checkbox("Show environment", &mShowEnvironment);
     }
     ImGui::End();
 
@@ -177,7 +193,7 @@ private:
   std::unique_ptr<Ubo> mMatricesUbo;
   std::unique_ptr<PbrScene> mPbrScene;
   std::unique_ptr<EnvironmentScene> mEnvironmentScene;
-  bool mShowEnvironment;
+  int mSceneIndex = 0;
 };
 
 int main()
