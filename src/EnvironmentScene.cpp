@@ -15,9 +15,10 @@ namespace
 {
   const GLuint kMatricesUniformBlockBinding = 0;
   const char* const kMatricesUbName = "ubMatrices";
-  const char* const kProjection = "uProjection";
-  const char* const kView = "uView";
-  const char* const kMixFactor = "uMixFactor";
+  const std::array<Neon::Vec3f, 4> kLightPositions{Neon::Vec3f{2.0f, 2.0f, 5.0f},
+                                                   Neon::Vec3f{2.0f, -2.0f, 5.0f},
+                                                   Neon::Vec3f{-2.0f, -2.0f, 5.0f},
+                                                   Neon::Vec3f{-2.0f, 2.0f, 5.0f}};
 }
 
 namespace Akoylasar
@@ -26,30 +27,42 @@ namespace Akoylasar
   {
     // Load shader sources from disk.
     ProgramInfo backgroundProgramInfo {std::make_pair("shaders/background.vs", ""), std::make_pair("shaders/background.fs", "")};
-    for (auto& pair : backgroundProgramInfo)
+    ProgramInfo pbrProgramInfo {std::make_pair("shaders/basicPbr.vs", ""), std::make_pair("shaders/diffusePbr.fs", "")};
+    std::array<ProgramInfo*, 2> programInfos {&backgroundProgramInfo, &pbrProgramInfo};
+    for (auto programInfo : programInfos)
     {
-      auto& path = pair.first;
-      auto& str = pair.second;
-      if (Common::readToString(path, str))
+      for (auto& pair : *programInfo)
       {
-        std::cerr << "Failed to load shader with path " << path << std::endl;
-        return;
+        auto& path = pair.first;
+        auto& str = pair.second;
+        if (Common::readToString(path, str))
+        {
+          std::cerr << "Failed to load shader with path " << path << std::endl;
+          return;
+        }
       }
     }
 
     // Create GPU shaders.
     GLuint matricesBlockIndex;
 
+    // Setup background program
     mBackgroundProgram = std::make_unique<ShaderProgram>(backgroundProgramInfo.at(0).second, backgroundProgramInfo.at(1).second);
     matricesBlockIndex = mBackgroundProgram->getUniformBlockIndex(kMatricesUbName);
     mBackgroundProgram->setUniformBlockBinding(matricesBlockIndex, kMatricesUniformBlockBinding);
-    mMixFactorUniformLoc = mBackgroundProgram->getUniformLocation(kMixFactor);
+    
+    // Setup PBR program
+    mPbrProgram = std::make_unique<ShaderProgram>(pbrProgramInfo.at(0).second, pbrProgramInfo.at(1).second);
+    matricesBlockIndex = mPbrProgram->getUniformBlockIndex(kMatricesUbName);
+    mPbrProgram->setUniformBlockBinding(matricesBlockIndex, kMatricesUniformBlockBinding);
     
     CHECK_GL_ERROR(glGenTextures(1, &mTexture));
     CHECK_GL_ERROR(glGenTextures(1, &mIrradianceMap));
     
     const auto cubeMesh = Mesh::buildCube();
     mCubeMesh = GpuMesh::createGpuMesh(*cubeMesh);
+    const auto sphereMesh = Mesh::buildSphere(3.0, 256, 256);
+    mSphereMesh = GpuMesh::createGpuMesh(*sphereMesh);
     
     // Launch a separate thread to load image from disk without blocking main app.
     std::thread t(&EnvironmentScene::loadImage, this);
@@ -60,19 +73,29 @@ namespace Akoylasar
   {
     if (mInitialised)
     {
-      mBackgroundProgram->use();
-      
-      CHECK_GL_ERROR(glActiveTexture(GL_TEXTURE0));
-      CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, mTexture));
       CHECK_GL_ERROR(glActiveTexture(GL_TEXTURE1));
       CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_CUBE_MAP, mIrradianceMap));
       
-      mBackgroundProgram->setIntUniform(mBackgroundProgram->getUniformLocation("sBackground"), 0);
-      mBackgroundProgram->setIntUniform(mBackgroundProgram->getUniformLocation("sIrradianceMap"), 1);
-
-      mBackgroundProgram->setFloatUniform(mMixFactorUniformLoc, mMixFactor);
-      
+      // Draw background
+      mBackgroundProgram->use();
+      CHECK_GL_ERROR(glActiveTexture(GL_TEXTURE0));
+      CHECK_GL_ERROR(glBindTexture(GL_TEXTURE_2D, mTexture));
+      mBackgroundProgram->setIntUniform(mBackgroundProgram->getUniformLocation("sBackground"), 0); // GL_TEXTURE0
+      mBackgroundProgram->setIntUniform(mBackgroundProgram->getUniformLocation("sIrradianceMap"), 1); // GL_TEXTURE1
+      mBackgroundProgram->setFloatUniform(mBackgroundProgram->getUniformLocation("uMixFactor"), mMixFactor);
       mCubeMesh.draw();
+      
+      // Draw sphere
+      mPbrProgram->use();
+      mPbrProgram->setVec3fUniform(mPbrProgram->getUniformLocation("uAlbedo"), mAlbedo);
+      mPbrProgram->setFloatUniform(mPbrProgram->getUniformLocation("uMetallic"), mMetallic);
+      mPbrProgram->setFloatUniform(mPbrProgram->getUniformLocation("uRoughness"), mRoughness);
+      mPbrProgram->setFloatUniform(mPbrProgram->getUniformLocation("uAo"), mAo);
+      mPbrProgram->setVec3fUniform(mPbrProgram->getUniformLocation("uCameraPos"), camera.getOrigin());
+      mPbrProgram->setVec3fArrayUniform<4>(mPbrProgram->getUniformLocation("uLightPositions"), kLightPositions);
+      mPbrProgram->setVec3fUniform(mPbrProgram->getUniformLocation("uLightColor"), mLightColor);
+      mPbrProgram->setIntUniform(mPbrProgram->getUniformLocation("sIrradianceMap"), 1); // GL_TEXTURE1
+      mSphereMesh.draw();
     }
     else
     {
@@ -89,7 +112,14 @@ namespace Akoylasar
   {
     if (mInitialised)
     {
-      ImGui::SliderFloat("Mix factor", &mMixFactor, 0.0f, 1.0f);
+      ImGui::SliderFloat("Environment map vs irradiance map", &mMixFactor, 0.0f, 1.0f);
+      ImGui::Separator();
+      ImGui::ColorEdit3("Albedo", reinterpret_cast<float*>(&mAlbedo));
+      ImGui::SliderFloat("Metallic", &mMetallic, 0, 1);
+      ImGui::SliderFloat("Roughness", &mRoughness, 0, 1);
+      ImGui::Separator();
+      ImGui::SliderFloat("AO", &mAo, 0, 1.0);
+      ImGui::ColorEdit3("Light Color", reinterpret_cast<float*>(&mLightColor));
     }
   }
   
@@ -233,9 +263,9 @@ namespace Akoylasar
     };
     
     // Render.
-    GLuint projLoc = program.getUniformLocation(kProjection);
+    GLuint projLoc = program.getUniformLocation("uProjection");
     program.setMat4fUniform(projLoc, proj);
-    GLuint viewLoc = program.getUniformLocation(kView);
+    GLuint viewLoc = program.getUniformLocation("uView");
     for (int i = 0; i < kNumCubmapFaces; ++i)
     {
       program.setMat4fUniform(viewLoc, views[i]);

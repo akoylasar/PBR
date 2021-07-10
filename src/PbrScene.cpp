@@ -8,18 +8,7 @@ namespace
 {
   const GLuint kMatricesUniformBlockBinding = 0;
   const char* const kMatricesUbName = "ubMatrices";
-
-  const char* const kAlbedoUniformName = "uAlbedo";
-  const char* const kMetallicUniformName = "uMetallic";
-  const char* const kRoughnessUniformName = "uRoughness";
-  const char* const kAoUniformName = "uAo";
-  const char* const kCameraPosUniformName = "uCameraPos";
-  const char* const kLightPositionsUniformName = "uLightPositions";
-  const char* const kLightColorUniformName = "uLightColor";
-  
-  const char* const kDebugModeUniformName = "uMode";
   const char* kDebugModes[] = {"Position", "Normal", "Uvs"};
-  
   const std::array<Neon::Vec3f, 4> kLightPositions{Neon::Vec3f{2.0f, 2.0f, 5.0f},
                                                    Neon::Vec3f{2.0f, -2.0f, 5.0f},
                                                    Neon::Vec3f{-2.0f, -2.0f, 5.0f},
@@ -33,7 +22,6 @@ namespace Akoylasar
    {
      ProgramInfo pbrProgramInfo {std::make_pair("shaders/basicPbr.vs", ""), std::make_pair("shaders/basicPbr.fs", "")};
      ProgramInfo debugProgramInfo {std::make_pair("shaders/debug.vs", ""), std::make_pair("shaders/debug.fs", "")};
-     
      std::array<ProgramInfo*, 2> programInfos {&pbrProgramInfo, &debugProgramInfo};
      for (auto programInfo : programInfos)
      {
@@ -61,16 +49,6 @@ namespace Akoylasar
      
      const auto sphereMesh = Mesh::buildSphere(3.0, 256, 256);
      mGpuMesh = GpuMesh::createGpuMesh(*sphereMesh);
-     
-     mAlbedoUniformLoc = mProgram->getUniformLocation(kAlbedoUniformName);
-     mMetallicUniformLoc = mProgram->getUniformLocation(kMetallicUniformName);
-     mRoughnessUniformLoc = mProgram->getUniformLocation(kRoughnessUniformName);
-     mAoUniformLoc = mProgram->getUniformLocation(kAoUniformName);
-     mCameraPosUniformLoc = mProgram->getUniformLocation(kCameraPosUniformName);
-     mLightPositionsUniformLoc = mProgram->getUniformLocation(kLightPositionsUniformName);
-     mLightColorUniformLoc = mProgram->getUniformLocation(kLightColorUniformName);
-     
-     mDebugModeUniformLoc = mDebugProgram->getUniformLocation(kDebugModeUniformName);
   
      mInitialised = true;
    }
@@ -82,18 +60,18 @@ namespace Akoylasar
        if (mRenderDebug)
        {
          mDebugProgram->use();
-         mDebugProgram->setIntUniform(mDebugModeUniformLoc, mDebugMode);
+         mDebugProgram->setIntUniform(mDebugProgram->getUniformLocation("uMode"), mDebugMode);
        }
        else
        {
          mProgram->use();
-         mProgram->setVec3fUniform(mAlbedoUniformLoc, mAlbedo);
-         mProgram->setFloatUniform(mMetallicUniformLoc, mMetallic);
-         mProgram->setFloatUniform(mRoughnessUniformLoc, mRoughness);
-         mProgram->setFloatUniform(mAoUniformLoc, mAo);
-         mProgram->setVec3fUniform(mCameraPosUniformLoc, camera.getOrigin());
-         mProgram->setVec3fArrayUniform<4>(mLightPositionsUniformLoc, kLightPositions);
-         mProgram->setVec3fUniform(mLightColorUniformLoc, mLightColor);
+         mProgram->setVec3fUniform(mProgram->getUniformLocation("uAlbedo"), mAlbedo);
+         mProgram->setFloatUniform(mProgram->getUniformLocation("uMetallic"), mMetallic);
+         mProgram->setFloatUniform(mProgram->getUniformLocation("uRoughness"), mRoughness);
+         mProgram->setFloatUniform(mProgram->getUniformLocation("uAo"), mAo);
+         mProgram->setVec3fUniform(mProgram->getUniformLocation("uCameraPos"), camera.getOrigin());
+         mProgram->setVec3fArrayUniform<4>(mProgram->getUniformLocation("uLightPositions"), kLightPositions);
+         mProgram->setVec3fUniform(mProgram->getUniformLocation("uLightColor"), mLightColor);
        }
        
        if (mRenderDebug && mShowWireframe)

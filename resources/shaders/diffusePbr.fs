@@ -18,6 +18,8 @@ uniform vec3 uCameraPos;
 uniform vec3 uLightPositions[NUM_LIGHTS];
 uniform vec3 uLightColor;
 
+uniform samplerCube sIrradianceMap;
+
 // The next four functions are described in great details at:
 // https://learnopengl.com/PBR/Lighting
 vec3 fresnelSchlick(float cosTheta, vec3 F0)
@@ -95,8 +97,14 @@ void main()
     Lo += (kD * (uAlbedo / PI) + specular) * radiance * NdotL;
   }
 
-  // Some fake ambient light.
-  vec3 ambient = uAlbedo * uAo;
+  // Diffuse light from the environment as the ambient term.
+  vec3 kS = fresnelSchlick(max(dot(N, V), 0.0), F0);
+  vec3 kD = 1.0 - kS;
+
+  vec3 irradiance = texture(sIrradianceMap, N).rgb;
+  vec3 diffuse = irradiance * uAlbedo;
+  vec3 ambient = kD * diffuse * uAo;
+
   vec3 color = ambient + Lo;
 
   // Tone-mapping
