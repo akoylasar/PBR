@@ -64,7 +64,7 @@ float GeometrySmith(vec3 N, vec3 V, vec3 L, float roughness)
 
 void main()
 {
-  vec3 F0 = vec3(0.04);
+  vec3 F0 = vec3(0.04); // Good approx for dielectrics.
   F0 = mix(F0, uAlbedo, uMetallic);
   vec3 N = vNormal;
   vec3 V = normalize(uCameraPos - vPos);

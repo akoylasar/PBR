@@ -25,6 +25,7 @@ target_sources(${PROJECT_NAME} PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/include/PbrScene.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/EnvironmentScene.hpp
   ${CMAKE_CURRENT_SOURCE_DIR}/include/Common.hpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/IBL.hpp
 
   ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/GlfwApp.cpp
@@ -34,6 +35,7 @@ target_sources(${PROJECT_NAME} PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/src/Camera.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/PbrScene.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/src/EnvironmentScene.cpp
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/IBL.cpp
 )
 
 if (MSVC)

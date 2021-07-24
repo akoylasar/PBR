@@ -15,7 +15,6 @@ layout (std140) uniform ubMatrices
 
 void main()
 {
-  // Just to have the backfaces rendered most conveniently.
   vPos = aPos.xyz;
   vNormal = aNormal;
   vUv = aUv;

@@ -4,7 +4,7 @@
 
 namespace Akoylasar
 {
-  void checkGLError(const char* file, int line)
+  void checkGLError(const char* cmdName, const char* file, int line)
   {
     if (GLenum errorCode = glGetError())
     {
@@ -26,7 +26,7 @@ namespace Akoylasar
         case GL_INVALID_FRAMEBUFFER_OPERATION:
           error = "INVALID_FRAMEBUFFER_OPERATION"; break;
       }
-      std::cerr << error << " | " << file << " (" << line << ")" << std::endl;
+      std::cerr << cmdName << " had error " << error << " @ " << file << " (" << line << ")" << std::endl;
     }
   }
   

@@ -26,7 +26,7 @@ namespace Akoylasar
   void EnvironmentScene::initialise()
   {
     // Load shader sources from disk.
-    ProgramInfo backgroundProgramInfo {std::make_pair("shaders/background.vs", ""), std::make_pair("shaders/background.fs", "")};
+    ProgramInfo backgroundProgramInfo {std::make_pair("shaders/background.vs", ""), std::make_pair("shaders/background1.fs", "")};
     ProgramInfo pbrProgramInfo {std::make_pair("shaders/basicPbr.vs", ""), std::make_pair("shaders/diffusePbr.fs", "")};
     std::array<ProgramInfo*, 2> programInfos {&backgroundProgramInfo, &pbrProgramInfo};
     for (auto programInfo : programInfos)
@@ -184,7 +184,7 @@ namespace Akoylasar
   
   void EnvironmentScene::setupIrradianceMap(ImageData* image)
   {
-    ProgramInfo irradianceProgramInfo {std::make_pair("shaders/irradianceComputer.vs", ""), std::make_pair("shaders/irradianceComputer.fs", "")};
+    ProgramInfo irradianceProgramInfo {std::make_pair("shaders/passThrough.vs", ""), std::make_pair("shaders/irradianceComputer.fs", "")};
     for (auto& pair : irradianceProgramInfo)
     {
       auto& path = pair.first;
@@ -197,6 +197,7 @@ namespace Akoylasar
     }
     
     auto program = std::make_unique<ShaderProgram>(irradianceProgramInfo.at(0).second, irradianceProgramInfo.at(1).second);
+    program->use();
     renderToCubeMap(mTexture, false, mIrradianceMap, 32, 32, *program, mCubeMesh);
 
     program.reset();
@@ -238,8 +239,6 @@ namespace Akoylasar
     GLenum status;
     CHECK_GL_ERROR(status = glCheckFramebufferStatus(GL_FRAMEBUFFER));
     DEBUG_ASSERT_MSG(status == GL_FRAMEBUFFER_COMPLETE, "Invalid framebuffer");
-    
-    program.use();
     
     CHECK_GL_ERROR(glActiveTexture(GL_TEXTURE0));
     CHECK_GL_ERROR(glBindTexture(isCubeMap ? GL_TEXTURE_CUBE_MAP : GL_TEXTURE_2D, inputTexture));

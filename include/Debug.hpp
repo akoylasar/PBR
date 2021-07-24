@@ -19,7 +19,7 @@
 #endif
 namespace Akoylasar
 {
-  void checkGLError(const char* file, int line);
+  void checkGLError(const char* cmdName, const char* file, int line);
   void clearGLErrors();
 }
 
@@ -28,7 +28,7 @@ namespace Akoylasar
 	[&]()\
 	{\
 		(cmd);\
-		Akoylasar::checkGLError(__FILE__, __LINE__);\
+		Akoylasar::checkGLError(#cmd, __FILE__, __LINE__);\
   }()
 #else
 	#define CHECK_GL_ERROR(cmd) (cmd)

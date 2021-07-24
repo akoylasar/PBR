@@ -12,10 +12,9 @@ uniform mat4 uView;
 
 void main()
 {
-  // Just to have the backfaces rendered most conveniently.
   vPos = aPos.xyz;
   vNormal = aNormal;
   vUv = aUv;
-  vec4 clip = uProjection * mat4(mat3(uView)) * vec4(vPos, 1.0);
+  vec4 clip = uProjection * uView * vec4(vPos, 1.0);
   gl_Position = clip;
 }

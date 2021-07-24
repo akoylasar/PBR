@@ -29,7 +29,6 @@ vec2 shpericalToUvSpace(vec2 p)
 
 void main()
 {
-
   vec3 N = normalize(vPos);
   vec3 Lo = vec3(0.0);   
 
@@ -50,7 +49,7 @@ void main()
         numSamples++;
       }
   }
-  Lo = PI * Lo * (1.0 / float(numSamples));
+  Lo = (PI * Lo) / float(numSamples);
 
   FragColor = vec4(Lo, 1.0);
 }

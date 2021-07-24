@@ -18,6 +18,7 @@
 #include "Ubo.hpp"
 #include "EnvironmentScene.hpp"
 #include "PbrScene.hpp"
+#include "IBL.hpp"
 
 using namespace Akoylasar;
 
@@ -55,7 +56,8 @@ public:
                                      kFar)),
   	mMatricesUbo(nullptr),
   	mPbrScene(std::make_unique<PbrScene>()),
-  	mEnvironmentScene(std::make_unique<EnvironmentScene>())
+  	mEnvironmentScene(std::make_unique<EnvironmentScene>()),
+  	mIBLScene(std::make_unique<IBLScene>())
   {}
   ~MainApp() override = default;
 protected:
@@ -73,13 +75,15 @@ protected:
     mUiTs = &mProfiler->createTimeStamp();
     
     CHECK_GL_ERROR(glEnable(GL_DEPTH_TEST));
-    
+    CHECK_GL_ERROR(glDepthFunc(GL_LEQUAL));
+
     // Setup matrices UBO
     const auto matricesBlockSize = 2 * sizeof(Neon::Mat4f);
     mMatricesUbo = Ubo::createUbo(matricesBlockSize, kMatricesUniformBlockBinding);
 
     mPbrScene->initialise();
     mEnvironmentScene->initialise();
+    mIBLScene->initialise();
     
     clearGLErrors();
   }
@@ -110,18 +114,11 @@ protected:
     Ubo::updateUbo(*mMatricesUbo, sizeof(Neon::Mat4f), sizeof(Neon::Mat4f), mCamera->getView().data());
 
     if (mSceneIndex == 0)
-    {
-      CHECK_GL_ERROR(glDepthFunc(GL_LESS));
       mPbrScene->render(deltaTime, *mCamera);
-    }
     else if (mSceneIndex == 1)
-    {
-      CHECK_GL_ERROR(glDepthFunc(GL_LEQUAL));
       mEnvironmentScene->render(deltaTime, *mCamera);
-    }
     else if (mSceneIndex == 2)
-    {
-    }
+      mIBLScene->render(deltaTime, *mCamera);
 
     drawUI(deltaTime);
 
@@ -134,6 +131,7 @@ protected:
   {
     mEnvironmentScene.reset();
     mPbrScene.reset();
+    mIBLScene.reset();
     
     Ubo::releaseUbo(*mMatricesUbo);
     mMatricesUbo.reset();
@@ -155,14 +153,6 @@ private:
     
     double uiMs = mUiTs->getElapsedTime() * fromNsToMs;
     
-    if (mSceneIndex == 0)
-      mPbrScene->drawUI(deltaTime);
-    else if (mSceneIndex == 1)
-      mEnvironmentScene->drawUI(deltaTime);
-    else if (mSceneIndex == 2)
-    {
-    }
-    
     ImVec2 windowPos, windowPosPivot;
     ImGui::SetNextWindowPos(windowPos, ImGuiCond_Always, windowPosPivot);
     ImGui::SetNextWindowBgAlpha(0.35f);
@@ -179,7 +169,14 @@ private:
       ImGui::Text("Frame time: %.2f(ms)", deltaTime * 1000.0);
     }
     ImGui::End();
-
+    
+    if (mSceneIndex == 0)
+      mPbrScene->drawUI(deltaTime);
+    else if (mSceneIndex == 1)
+      mEnvironmentScene->drawUI(deltaTime);
+    else if (mSceneIndex == 2)
+      mIBLScene->drawUI(deltaTime);
+    
     ImGui::Render();
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
     ImGui::EndFrame();
@@ -193,6 +190,7 @@ private:
   std::unique_ptr<Ubo> mMatricesUbo;
   std::unique_ptr<PbrScene> mPbrScene;
   std::unique_ptr<EnvironmentScene> mEnvironmentScene;
+  std::unique_ptr<IBLScene> mIBLScene;
   int mSceneIndex = 0;
 };
 
