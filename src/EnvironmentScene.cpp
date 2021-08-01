@@ -1,3 +1,5 @@
+/*
+ * Copyright (c) Fouad Valadbeigi (akoylasar@gmail.com) */
 #include "EnvironmentScene.hpp"
 
 #include <thread>

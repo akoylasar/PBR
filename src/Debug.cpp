@@ -1,3 +1,5 @@
+/*
+ * Copyright (c) Fouad Valadbeigi (akoylasar@gmail.com) */
 #include "Debug.hpp"
 
 #include <GL/gl3w.h>

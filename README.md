@@ -11,3 +11,9 @@ How to build
 `$cd Build/`
 
 `$cmake -g"Your favorite toolchain" ..`
+
+Misc
+--
+HDR image was downloaded from [sIBL Archive](http://www.hdrlabs.com/sibl/archive.html)
+
+![screenshot](https://raw.githubusercontent.com/akoylasar/PBR/master/PBR.png)
