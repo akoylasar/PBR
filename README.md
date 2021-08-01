@@ -14,6 +14,6 @@ How to build
 
 Misc
 --
-HDR image was downloaded from [sIBL Archive](http://www.hdrlabs.com/sibl/archive.html)
+HDR image was downloaded from [sIBL Archive](http://www.hdrlabs.com/sibl/archive.html).
 
-![screenshot](https://raw.githubusercontent.com/akoylasar/PBR/master/PBR.png)
+![screenshot](https://github.com/akoylasar/PBR/blob/master/PBR.png)
