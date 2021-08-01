@@ -59,7 +59,7 @@ namespace Akoylasar
 
     const auto cubeMesh = Mesh::buildCube();
     mCubeMesh = GpuMesh::createGpuMesh(*cubeMesh);
-    const auto sphereMesh = Mesh::buildSphere(3.0, 256, 256);
+    const auto sphereMesh = Mesh::buildSphere(1.0, 256, 256);
     mSphereMesh = GpuMesh::createGpuMesh(*sphereMesh);
     
     // Launch a separate thread to load image from disk without blocking main app.

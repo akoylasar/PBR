@@ -102,8 +102,8 @@ void main()
   vec3 kD = 1.0 - kS;
 
   vec3 irradiance = texture(sIrradianceMap, N).rgb;
-  vec3 diffuse = irradiance * uAlbedo;
-  vec3 ambient = kD * diffuse * uAo;
+  vec3 diffuse = kD * irradiance * uAlbedo;
+  vec3 ambient = diffuse * uAo;
 
   vec3 color = ambient + Lo;
 
