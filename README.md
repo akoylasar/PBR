@@ -1,5 +1,5 @@
 
-PBR: An example showcasing a physically based rendering in real time. 
+PBR: Various examples showcasing physically based rendering. 
 --
 
 How to build
