@@ -65,7 +65,7 @@ namespace Akoylasar
     mSphereMesh = GpuMesh::createGpuMesh(*sphereMesh);
     
     // Launch a separate thread to load image from disk without blocking main app.
-    std::thread t(&IBLScene::loadImage, this);
+    std::thread t(&IBLScene::loadAssets, this);
     t.detach();
   }
   
@@ -136,7 +136,7 @@ namespace Akoylasar
     }
   }
   
-  void IBLScene::loadImage()
+  void IBLScene::loadAssets()
   {
     // Load image from disk and create a GPU texture from it.
     std::filesystem::path imagePath {"images/Barce_Rooftop_C_3k.hdr"};

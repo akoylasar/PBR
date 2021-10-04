@@ -23,7 +23,7 @@ namespace Akoylasar
     void initialise();
     void render(double deltaTime, const Camera& camera);
     void shutdown();
-    void loadImage();
+    void loadAssets();
     void steupResources(ImageData* image);
     void setupBackgroundTexture(ImageData* image);
     void setupIrradianceMap();
