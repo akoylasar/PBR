@@ -51,9 +51,9 @@ namespace Akoylasar
     GLuint mPrefilterMap;
     GLuint mBrdfLUT;
     Neon::Vec3f mAlbedo = Neon::Vec3f(0.98, 0.96, 0.99);
-    float mMetallic = 0.1f;
-    float mRoughness = 0.8f;
-    float mAo = 0.005;
+    float mMetallic = 0.5f;
+    float mRoughness = 0.3f;
+    float mAo = 1.0f;
     bool mInitialised = false;
   };
 }

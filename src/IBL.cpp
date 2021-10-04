@@ -24,8 +24,8 @@ namespace Akoylasar
   void IBLScene::initialise()
   {
     // Load shader sources from disk.
-    ProgramInfo backgroundProgramInfo {std::make_pair("shaders/background.vs", ""), std::make_pair("shaders/background2.fs", "")};
-    ProgramInfo pbrProgramInfo {std::make_pair("shaders/basicPbr.vs", ""), std::make_pair("shaders/iblPbr.fs", "")};
+    ProgramInfo backgroundProgramInfo {std::make_pair("shaders/background.vs", ""), std::make_pair("shaders/background.fs", "")};
+    ProgramInfo pbrProgramInfo {std::make_pair("shaders/ibl.vs", ""), std::make_pair("shaders/ibl.fs", "")};
     std::array<ProgramInfo*, 2> programInfos {&backgroundProgramInfo, &pbrProgramInfo};
     for (auto programInfo : programInfos)
     {
@@ -61,7 +61,7 @@ namespace Akoylasar
 
     const auto cubeMesh = Mesh::buildCube();
     mCubeMesh = GpuMesh::createGpuMesh(*cubeMesh);
-    const auto sphereMesh = Mesh::buildSphere(1.0, 256, 256);
+    const auto sphereMesh = Mesh::buildSphere(1.5, 256, 256);
     mSphereMesh = GpuMesh::createGpuMesh(*sphereMesh);
     
     // Launch a separate thread to load image from disk without blocking main app.

@@ -18,8 +18,7 @@
 #include "Debug.hpp"
 #include "Camera.hpp"
 #include "Ubo.hpp"
-#include "EnvironmentScene.hpp"
-#include "PbrScene.hpp"
+
 #include "IBL.hpp"
 
 using namespace Akoylasar;
@@ -57,8 +56,6 @@ public:
                                      kNear,
                                      kFar)),
   	mMatricesUbo(nullptr),
-  	mPbrScene(std::make_unique<PbrScene>()),
-  	mEnvironmentScene(std::make_unique<EnvironmentScene>()),
   	mIBLScene(std::make_unique<IBLScene>())
   {}
   ~MainApp() override = default;
@@ -83,8 +80,6 @@ protected:
     const auto matricesBlockSize = 2 * sizeof(Neon::Mat4f);
     mMatricesUbo = Ubo::createUbo(matricesBlockSize, kMatricesUniformBlockBinding);
 
-    mPbrScene->initialise();
-    mEnvironmentScene->initialise();
     mIBLScene->initialise();
     
     clearGLErrors();
@@ -116,10 +111,6 @@ protected:
     Ubo::updateUbo(*mMatricesUbo, sizeof(Neon::Mat4f), sizeof(Neon::Mat4f), mCamera->getView().data());
 
     if (mSceneIndex == 0)
-      mPbrScene->render(deltaTime, *mCamera);
-    else if (mSceneIndex == 1)
-      mEnvironmentScene->render(deltaTime, *mCamera);
-    else if (mSceneIndex == 2)
       mIBLScene->render(deltaTime, *mCamera);
 
     drawUI(deltaTime);
@@ -131,8 +122,6 @@ protected:
   
   void shutDown() override
   {
-    mEnvironmentScene.reset();
-    mPbrScene.reset();
     mIBLScene.reset();
     
     Ubo::releaseUbo(*mMatricesUbo);
@@ -173,10 +162,6 @@ private:
     ImGui::End();
     
     if (mSceneIndex == 0)
-      mPbrScene->drawUI(deltaTime);
-    else if (mSceneIndex == 1)
-      mEnvironmentScene->drawUI(deltaTime);
-    else if (mSceneIndex == 2)
       mIBLScene->drawUI(deltaTime);
     
     ImGui::Render();
@@ -190,8 +175,6 @@ private:
   TimeStamp* mUiTs;
   std::unique_ptr<Camera> mCamera;
   std::unique_ptr<Ubo> mMatricesUbo;
-  std::unique_ptr<PbrScene> mPbrScene;
-  std::unique_ptr<EnvironmentScene> mEnvironmentScene;
   std::unique_ptr<IBLScene> mIBLScene;
   int mSceneIndex = 0;
 };
